@@ -1,15 +1,14 @@
-import './styles/App.css';
-
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-      </header>
-    </div>
-  );
+// src/App.js
+import React from "react";
+import GameArea from "./componentes/GameArea";
+import "./styles/App.css";
+const App = () => {
+    return (
+        <div className="App">
+            <h1>Tablero de juego</h1>
+            <GameArea />
+        </div>
+    );
 }
 
 export default App;
