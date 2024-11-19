@@ -2,6 +2,14 @@
 import React from "react";
 import "./styles/App.css";
 import { useNavigate } from 'react-router-dom';
+import {io} from 'socket.io-client';
+
+
+const socket = io('http://localhost:3001');
+
+socket.on('connect', () => {
+  console.log('Conectado al servidor:', socket.id);
+});
 
 const App = () => {
   const navigate = useNavigate();
