@@ -1,4 +1,4 @@
-// frontend/src/data/initialBoard.js
+
 export const initialBoard = [
         [9, 9, 9, 9, 9, 9, 1, 9, 9, 9, 9, 9, 8],
         [8, 9, 9, 9, 9, 9, 1, 1, 9, 9, 9, 9, 9],

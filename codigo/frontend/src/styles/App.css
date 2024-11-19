@@ -1,13 +1,58 @@
-/* frontend/src/styles/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
 body {
   background: url('https://upload.wikimedia.org/wikipedia/commons/2/2e/Wood_background.jpg') no-repeat center center fixed;
   -webkit-background-size: cover;
   -moz-background-size: cover;
   -o-background-size: cover;
   background-size: cover;
+  display: flex; 
+  justify-content: center;
+  align-items: center; 
+  height: 100vh; 
+  background-color: #f5f5f5; 
+  margin: 0;
+}
+
+.bodyTablero {
   text-align: center;
   display: flex;
-  flex-direction: column; /* Dispone los componentes en fila */
+  flex-direction: column; 
   align-items: center;
   justify-content: center;
+}
+
+.tituloStyle {
+  font-family: "Poppins", serif;
+  font-weight: 600;
+  font-style: normal;
+  color: #48201d;
+}
+
+.buttonStyle {
+  background-color: #8f4039;
+  font-family: "Poppins", serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  color: #f5f5f5;
+  margin-bottom: 10px;
+  height: 45px;
+  width: 200px;
+  border-radius: 5px;
+  border: none;
+
+}
+
+.buttonContenedor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+}
+
+.buttonStyle:hover {
+  background-color: #48201d; 
+  color: #d7d2d2; 
 }
