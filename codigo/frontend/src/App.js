@@ -14,20 +14,26 @@ socket.on('connect', () => {
 const App = () => {
   const navigate = useNavigate();
 
+  // Ir al apartdo de crear partida
   const crearPartida = () => {
     navigate('/crearPartida');
   }
 
+  // Ir al apartado para unirse a un juego
+  const unirseJuego = () => {
+    navigate('/unirseJuego');
+  }
+
   return (
-      <div className="App">
+      <div className="contenedor">
         <h1 className="tituloStyle">Damas Chinas - Online</h1>
 
         <div className="buttonContenedor">
           <button className="buttonStyle" onClick={crearPartida}>Crear Partida</button>
-          <button className="buttonStyle">Unirse a Juego</button>
+          <button className="buttonStyle" onClick={unirseJuego}>Unirse a Juego</button>
           <button className="buttonStyle">Ver Ranking</button>
         </div>
-      </div>
+    </div>
   );
 }
 
