@@ -1,6 +1,6 @@
 // src/App.js
 import React from "react";
-import GameArea from "./componentes/GameArea";
+import GameArea from './Componentes/GameArea';
 import "./styles/App.css";
 const App = () => {
     return (

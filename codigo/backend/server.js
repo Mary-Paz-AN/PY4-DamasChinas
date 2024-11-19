@@ -12,8 +12,7 @@ app.use( express.json());
 app.use(express.urlencoded({ extended: true}));
 
 //Inica las consultas al API
-
-app.use(cors()); // Permitir solicitudes del frontend
+app.use(cors()); 
 
 // Endpoint para obtener el estado inicial del tablero
 app.get("/board", (req, res) => {
