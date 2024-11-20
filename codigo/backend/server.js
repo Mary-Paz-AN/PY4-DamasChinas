@@ -73,23 +73,29 @@ io.on('connection', (socket) => {
   });
 
   // Evento para unirse a una partida existente
-  socket.on('unirsePartida', (partidaId) => {
+  socket.on('unirsePartida', ({partidaId, socketID}) => {
     const partida = partidas[partidaId];
     
+    //Verifica que la partida exista
     if (!partida) {
       socket.emit('errorUnirsePartida', 'Partida no encontrada.');
       return;
     }
 
-    if (partida.jugadores.length >= 6) {
-      socket.emit('errorUnirsePartida', 'La partida está llena.');
+    //Verificar si el jugador ya esta en la partida
+    const jugadorPartida = partida.jugadores.some(
+      (jugador) => jugador.id === socketID
+    );
+
+    if (jugadorPartida) {
+      socket.emit('errorUnirsePartida', 'Ya estás en esta partida.');
       return;
     }
 
     // Agregar al jugador a la partida
-    partida.jugadores.push({ id: socket.id, nombre: usuarios[socket.id] });
+    partida.jugadores.push({ id: socketID, nombre: usuarios[socketID].nombre });
 
-    console.log(`Jugador ${usuarios[socket.id]} (${socket.id}) se unió a la partida ${partidaId}`);
+    console.log(`Jugador ${usuarios[socketID].nombre} (${socketID}) se unió a la partida ${partidaId}`);
 
     // Emitir evento al cliente indicando que se unió correctamente
     socket.emit('partidaUnida', partida);

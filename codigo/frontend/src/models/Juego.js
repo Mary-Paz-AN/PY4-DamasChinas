@@ -10,7 +10,10 @@ class Juego {
 
   // Método para unirse a una partida
   unirsePartida(partidaId) {
-    this.socket.emit('unirsePartida', partidaId);
+    this.socket.emit('unirsePartida', { 
+      partidaId, 
+      socketID: this.socket.id 
+    });
   }
 
   // Método para obtener las partidas disponibles

@@ -38,15 +38,31 @@ const PartidasDisponibles = () => {
     };
   }, []);
 
+  useEffect(() => {
+    socketJuego.socket.on('errorUnirsePartida', (error) => {
+      alert(`No se pudo unir a la partida: ${error}`);
+    });
+  
+    socketJuego.socket.on('partidaUnida', (partida) => {
+      console.log(`Te uniste a la partida: ${partida.id}`);
+      // Optionally navigate to game room or do something else
+    });
+  
+    // Cleanup listeners
+    return () => {
+      socketJuego.socket.off('errorUnirsePartida');
+      socketJuego.socket.off('partidaUnida');
+    };
+  }, []);
+
+  //Funcion para iniciar entrar al juego
+  const handleEntrarJuego = () => {
+    console.log('navigate');
+  }
+
   // Función para unirse a una partida
   const handleUnirsePartida = (id) => {
-    socketJuego.unirsePartida(id, (error) => {
-      if (error) {
-        alert(`No se pudo unir a la partida: ${error}`);
-      } else {
-        console.log(`Te uniste a la partida: ${id}`);
-      }
-    });
+    socketJuego.unirsePartida(id);
   };
 
   const volver = () => {
@@ -95,15 +111,26 @@ const PartidasDisponibles = () => {
                   ))}
                 </ListGroup>
                 <Card.Body>
-                  <Button
-                    className="buttonEstilo"
-                    onClick={() => handleUnirsePartida(partida.id)}
-                    disabled={partida.jugadores.length >= partida.cantJug} 
-                    variant={partida.jugadores.length >= partida.cantJug ? "sucess" : "primary"}
-                    style={{ width: '100%' }}
-                  >
-                    {partida.jugadores.length >= 6 ? "Entrar" : "Unirse"}
-                  </Button>
+                  {partida.jugadores.length >= partida.cantJug ?
+                  (
+                    <Button
+                      className="buttonEstilo"
+                      onClick={() => handleEntrarJuego(partida.id)}
+                      variant="sucess"
+                      style={{ width: '100%' }}
+                    >
+                      Entrar
+                    </Button>
+                  ) : (
+                    <Button
+                      className="buttonEstilo"
+                      onClick={() => handleUnirsePartida(partida.id)} 
+                      variant="primary"
+                      style={{ width: '100%' }}
+                    >
+                      Unirse
+                    </Button>
+                  )}
                 </Card.Body>
               </Card>
             ))
