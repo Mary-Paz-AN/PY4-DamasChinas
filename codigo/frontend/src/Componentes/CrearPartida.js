@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import "../styles/App.css";
 import { useNavigate } from "react-router-dom";
-import Juego from '../models/Juego';  // Importamos el modelo Juego
+import Juego from '../models/Juego';
+import socket from '../Sockets.js';  
 
-const socketJuego = new Juego();  // Usamos una única instancia de Juego
+const socketJuego = new Juego(socket); 
 
 const CrearPartida = () => {
   const [nombre, setNombre] = useState('');  // Nombre de la partida
+  const [tipoJuego, setTipo] = useState(''); //Tipo de partida
+  const [cantJugadores, setCantJugadores] = useState(''); // Cantidad de jugadores para la partidas
   const [partidaId, setPartidaId] = useState('');  // ID de la partida creada
   const navigate = useNavigate();
 
+  const tiposJuego = ['Vs'];
+  const numJugadores = [2, 3, 4, 6];
+
   useEffect(() => {
-    // Escuchar el evento 'partidaCreada' cuando el servidor emita el ID de la partida
+    // Escuchar el evento partidaCreada cuando el servidor emita el ID de la partida
     socketJuego.socket.on('partidaCreada', (id) => {
       console.log(`Partida creada con ID: ${id}`);
       setPartidaId(id);  // Asignamos el ID de la partida a la variable de estado
@@ -25,7 +31,7 @@ const CrearPartida = () => {
 
   const handleCrearPartida = () => {
     if (nombre.trim()) {
-      socketJuego.crearPartida(nombre);  // Emitir al servidor para crear la partida
+      socketJuego.crearPartida(nombre, tipoJuego, cantJugadores);  // Emitir al servidor para crear la partida
     }
   };
 
@@ -46,6 +52,35 @@ const CrearPartida = () => {
           placeholder="Ingresa tu nombre"
           className='inputStyle'
         />
+        
+        <select 
+          id="comboBox" 
+          value={tipoJuego} 
+          onChange={(e) => setTipo(e.target.value)}
+          className='inputStyle'
+        >
+          <option value="" disabled>Seleccione el tipo de juego</option> 
+          {tiposJuego.map((tipo, index) => (
+            <option key={index} value={tipo}>
+              {tipo}
+            </option>
+          ))}
+        </select>
+
+        <select 
+          id="comboBox" 
+          value={cantJugadores} 
+          onChange={(e) => setCantJugadores(e.target.value)}
+          className='inputStyle'
+        >
+          <option value="" disabled>Seleccione el tipo de juego</option> 
+          {numJugadores.map((num, index) => (
+            <option key={index} value={num}>
+              {num}
+            </option>
+          ))}
+        </select>
+
         <button onClick={handleCrearPartida} className='buttonStyle'>Crear Partida</button>
 
         {/* Mostrar ID de la partida si fue creada */}

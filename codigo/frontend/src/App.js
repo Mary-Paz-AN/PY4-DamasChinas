@@ -1,30 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./styles/App.css";
-import socket from "./Sockets.js"; // Importamos la conexión centralizada
+import socket from "./Sockets.js";
 import Login from "./Componentes/Login";
 
-let socketInitialized = false;
-
 const App = () => {
-  const [usuario, setUsuario] = useState(null); // Estado para guardar el nombre del usuario
+  const [usuario, setUsuario] = useState(null); 
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!socketInitialized) {
-      socket.on("connect", () => {
-        console.log("Conectado al servidor:", socket.id);
-      });
-      socketInitialized = true; // Establece el flag para evitar futuras conexiones
-    }
-
-    // Intenta cargar el usuario desde sessionStorage al montar el componente
-    const usuarioGuardado = sessionStorage.getItem("usuario");
-    if (usuarioGuardado) {
-      setUsuario(usuarioGuardado); // Establece el usuario si está guardado
-      // Emitir el socket.id y el nombre del usuario al backend
-      socket.emit("login", { nombre: usuarioGuardado, socketId: socket.id });
-    }
+    socket.on("connect", () => {
+      console.log("Conectado al servidor:", socket.id);
+      
+      const usuarioGuardado = sessionStorage.getItem("usuario");
+      if (usuarioGuardado) {
+        socket.emit("login", { 
+          nombre: usuarioGuardado, 
+          socketId: socket.id 
+        });
+      }
+    });
+  
+    return () => {
+      socket.off("connect");
+    };
   }, []);
 
   const handleLogin = (nombre) => {

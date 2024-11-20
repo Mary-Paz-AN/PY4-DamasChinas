@@ -33,7 +33,7 @@ io.on('connection', (socket) => {
   socket.on("login", ({ nombre, socketId }) => {
     if (nombre && socketId) {
       // Asociar el socket.id recibido con el nombre del usuario
-      usuarios[socketId] = nombre;
+      usuarios[socketId] = {nombre};
       console.log(`Usuario ${nombre} conectado con socket ID: ${socketId}`);
     } else {
       console.error("El nombre o socketId no es válido");
@@ -41,7 +41,7 @@ io.on('connection', (socket) => {
   });
 
   // Evento para crear una partida
-  socket.on('crearPartida', (nombre) => {
+  socket.on('crearPartida', ({nombre, tipo, cantJug}) => {
     console.log('Partida creada por:', nombre);
 
     const partidaId = generarIdPartida(); // Generar un ID único para la partida
@@ -49,11 +49,14 @@ io.on('connection', (socket) => {
     // Guardar la partida en el objeto partidas
     partidas[partidaId] = { 
       id: partidaId, 
-      nombre: nombre, 
+      nombre,
+      tipo,
+      cantJug,
       jugadores: [{ id: socket.id, nombre: usuarios[socket.id] }] 
     };
     console.log(`Socket jugador: ${socket.id}`);
     console.log(`Nombre del jugador: ${usuarios[socket.id]}`);
+    console.log(partidas);
 
 
     // Emitir el ID de la partida creada al jugador

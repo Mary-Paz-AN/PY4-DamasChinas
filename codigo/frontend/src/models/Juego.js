@@ -1,56 +1,50 @@
-import { io } from 'socket.io-client';
-
 class Juego {
-  constructor() {
-    if (!Juego.instance) {
-      // Solo se crea la conexión al socket si no existe una instancia
-      this.socket = io('http://localhost:3001');
-      this.partidaId = null;
-      this.nombre = '';
-
-      this.socket.on('connect', () => {
-        console.log('Conectado al servidor:', this.socket.id);
-      });
-
-      // Eventos del servidor
-      this.socket.on('partidaCreada', (id) => {
-        console.log(`Partida creada con ID: ${id}`);
-        this.partidaId = id;
-      });
-
-      this.socket.on('partidaUnida', (partida) => {
-        console.log('Te has unido a la partida:', partida);
-      });
-
-      this.socket.on('inicioJuego', (partida) => {
-        console.log('Juego comenzado en la partida:', partida);
-      });
-
-      // Usamos una propiedad estática para asegurarnos que solo exista una instancia
-      Juego.instance = this;
-    }
-
-    return Juego.instance; // Retorna la misma instancia cada vez
+  constructor(socket) {
+    this.socket = socket; 
   }
 
-  // Métodos para interactuar con el servidor
-  crearPartida(nombre) {
-    this.nombre = nombre;
-    if (this.socket.connected) {
-      this.socket.emit('crearPartida', { nombre });
-    } else {
-      console.error('No estás conectado al servidor');
-    }
+  // Método para crear una partida
+  crearPartida(nombre, tipo, cantJug) {
+    this.socket.emit('crearPartida', { nombre, tipo, cantJug });
   }
 
+  // Método para unirse a una partida
   unirsePartida(partidaId) {
-    if (this.socket.connected) {
-      this.socket.emit('unirsePartida', partidaId);
-    } else {
-      console.error('No estás conectado al servidor');
-    }
+    this.socket.emit('unirsePartida', partidaId);
+  }
+
+  // Método para obtener las partidas disponibles
+  obtenerPartidas() {
+    this.socket.emit('obtenerPartidas');
+  }
+
+  // Método para escuchar actualizaciones de partidas
+  onActualizarPartidas(callback) {
+    this.socket.on('actualizarPartidas', callback);
+  }
+
+  // Método para escuchar cuando una partida es creada
+  onPartidaCreada(callback) {
+    this.socket.on('partidaCreada', callback);
+  }
+
+  // Método para escuchar cuando se une a una partida
+  onPartidaUnida(callback) {
+    this.socket.on('partidaUnida', callback);
+  }
+
+  // Método para escuchar errores al unirse a una partida
+  onErrorUnirsePartida(callback) {
+    this.socket.on('errorUnirsePartida', callback);
+  }
+
+  // Método para limpiar los listeners
+  limpiarListeners() {
+    this.socket.off('actualizarPartidas');
+    this.socket.off('partidaCreada');
+    this.socket.off('partidaUnida');
+    this.socket.off('errorUnirsePartida');
   }
 }
 
-// Hacemos de Juego un singleton para evitar crear múltiples instancias
 export default Juego;

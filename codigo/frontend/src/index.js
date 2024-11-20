@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from "./App"; 
 import CrearPartida from "./Componentes/CrearPartida";
 import PartidasDisponibles from "./Componentes/PartidasDisponibles";
+import Turno from "./Componentes/Turno";
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
