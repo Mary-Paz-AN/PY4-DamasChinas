@@ -1,5 +1,7 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Row, Card, ListGroup, Button } from 'react-bootstrap';
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Juego from "../models/Juego.js";
 import '../styles/UnirseJuego.css';
 
@@ -7,6 +9,7 @@ const socketJuego = new Juego();
 
 const PartidasDisponibles = () => {
   const [partidas, setPartidas] = useState([]); // Estado para almacenar partidas disponibles
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Solicitar la lista inicial de partidas después de conectarse al servidor
@@ -45,11 +48,19 @@ const PartidasDisponibles = () => {
     });
   };
 
+  const volver = () => {
+    navigate('/');
+  };
+
   return (
     <div>
       <div style={{ margin: '10px' }}></div>
 
       <Container>
+        <Row>
+          <button className='buttonStyle'style={{margin: '10px', width: '40px', height: '40px'}} onClick={volver}>⭠</button>
+        </Row>
+
         <Row className='tituloStyle' style={{ textAlign: 'center' }}>
           <h1>Elija la partida que desee jugar:</h1>
         </Row>
@@ -84,9 +95,9 @@ const PartidasDisponibles = () => {
                 </ListGroup>
                 <Card.Body>
                   <Button
-                    className="botonUnirse"
+                    className="buttonEstilo"
                     onClick={() => handleUnirsePartida(partida.id)}
-                    disabled={partida.jugadores.length >= 6} // Desactivar si la partida está llena
+                    disabled={partida.jugadores.length >= 6} 
                     variant={partida.jugadores.length >= 6 ? "danger" : "primary"}
                     style={{ width: '100%' }}
                   >

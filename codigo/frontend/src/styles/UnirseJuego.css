@@ -21,14 +21,14 @@
     color: white;
 }
 
-.buttonVolver {
+.buttonEstilo {
     background-color: #6c302b;
     color: white;
     width: auto;
     border: none;
 }
 
-.buttonVolver:hover {
+.buttonEstilo:hover {
     background-color: #48201d;
     color: #d7d2d2;
 }

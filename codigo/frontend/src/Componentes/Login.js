@@ -14,7 +14,7 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="loginContainer">
+    <div className="contenedor">
       <h1 className="tituloStyle">Damas Chinas - Online</h1>
       <input
         type="text"

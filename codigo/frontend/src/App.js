@@ -63,7 +63,7 @@ const App = () => {
   }
 
   return (
-    <div className="App">
+    <div className="contenedor">
       <h1 className="tituloStyle">Damas Chinas - Online</h1>
       <h2 className="bienvenidaStyle">Bienvenido, {usuario}</h2>
 
