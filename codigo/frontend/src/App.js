@@ -62,21 +62,28 @@ const App = () => {
     return <Login onLogin={handleLogin} />;
   }
 
-  const dado = () => {
-    navigate('/dado');
-  }
-
-
   return (
     <div className="App">
       <h1 className="tituloStyle">Damas Chinas - Online</h1>
       <h2 className="bienvenidaStyle">Bienvenido, {usuario}</h2>
 
-        <div className="buttonContenedor">
-          <button className="buttonStyle" onClick={crearPartida}>Crear Partida</button>
-          <button className="buttonStyle" onClick={unirseJuego}>Unirse a Juego</button>
-          <button className="buttonStyle">Ver Ranking</button>
-        </div>
+      <div className="buttonContenedor">
+        <button className="buttonStyle" onClick={crearPartida}>
+          Crear Partida
+        </button>
+        <button className="buttonStyle" onClick={partidaDisp}>
+          Partidas Disponibles
+        </button>
+        <button className="buttonStyle" onClick={unirseJuego}>
+          Unirse a Juego
+        </button>
+        <button className="buttonStyle" onClick={verRanking}>
+          Ver Ranking
+        </button>
+        <button className="buttonStyle" onClick={cerrarSesion}>
+          Cerrar Sesión
+        </button>
+      </div>
     </div>
   );
 };
