@@ -52,10 +52,10 @@ io.on('connection', (socket) => {
       nombre,
       tipo,
       cantJug,
-      jugadores: [{ id: socket.id, nombre: usuarios[socket.id] }] 
+      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }] 
     };
     console.log(`Socket jugador: ${socket.id}`);
-    console.log(`Nombre del jugador: ${usuarios[socket.id]}`);
+    console.log(`Nombre del jugador: ${usuarios[socket.id].nombre}`);
     console.log(partidas);
 
 

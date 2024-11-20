@@ -7,7 +7,7 @@ const Login = ({ onLogin }) => {
 
   const handleLogin = () => {
     if (nombre.trim()) {
-      onLogin(nombre); // Llamar a la función de login con el nombre
+      onLogin(nombre); 
     } else {
       alert("Por favor, introduce tu nombre.");
     }

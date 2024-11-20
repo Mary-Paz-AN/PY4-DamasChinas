@@ -2,10 +2,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Row, Card, ListGroup, Button } from 'react-bootstrap';
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Juego from "../models/Juego.js";
 import '../styles/UnirseJuego.css';
+import Juego from "../models/Juego.js";
+import socket from '../Sockets.js';  
 
-const socketJuego = new Juego();    
+const socketJuego = new Juego(socket);    
 
 const PartidasDisponibles = () => {
   const [partidas, setPartidas] = useState([]); // Estado para almacenar partidas disponibles
@@ -78,11 +79,11 @@ const PartidasDisponibles = () => {
                       <b style={{ color: '#8f4039' }}>Id:</b> {partida.id}
                     </div>
                     <div>
-                      <b style={{ color: '#8f4039' }}>Creador:</b> {typeof partida.nombre === 'object' ? partida.nombre.nombre : partida.nombre || "Sin nombre"}
+                      <b style={{ color: '#8f4039' }}>Creador:</b> {partida.nombre}
                     </div>
                     <div style={{ margin: '8px' }}></div>
                     <div style={{ textAlign: 'center', color: '#8f4039' }}>
-                      <b>Jugadores:</b> {partida.jugadores.length}/6
+                      <b>Jugadores:</b> {partida.jugadores.length}/{partida.cantJug}
                     </div>
                   </Card.Text>
                 </Card.Body>
@@ -97,11 +98,11 @@ const PartidasDisponibles = () => {
                   <Button
                     className="buttonEstilo"
                     onClick={() => handleUnirsePartida(partida.id)}
-                    disabled={partida.jugadores.length >= 6} 
-                    variant={partida.jugadores.length >= 6 ? "danger" : "primary"}
+                    disabled={partida.jugadores.length >= partida.cantJug} 
+                    variant={partida.jugadores.length >= partida.cantJug ? "sucess" : "primary"}
                     style={{ width: '100%' }}
                   >
-                    {partida.jugadores.length >= 6 ? "Llena" : "Unirse"}
+                    {partida.jugadores.length >= 6 ? "Entrar" : "Unirse"}
                   </Button>
                 </Card.Body>
               </Card>

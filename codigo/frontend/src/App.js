@@ -5,7 +5,9 @@ import socket from "./Sockets.js";
 import Login from "./Componentes/Login";
 
 const App = () => {
-  const [usuario, setUsuario] = useState(null); 
+  const [usuario, setUsuario] = useState(() => {
+    return sessionStorage.getItem("usuario") || null;
+  });  //Verifica si hay un usuario en la sesion
   const navigate = useNavigate();
 
   useEffect(() => {
