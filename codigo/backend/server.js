@@ -8,73 +8,129 @@ import { Server as SocketServer } from 'socket.io';
 const app = express();
 const server = http.createServer(app); // Usar este servidor para Socket.IO
 const io = new SocketServer(server, {
-    cors: {
-        origin: "http://localhost:3000", // URL del frontend
-        methods: ["GET", "POST"],
-    }
+  cors: {
+    origin: "http://localhost:3000", // URL del frontend
+    methods: ["GET", "POST"],
+  },
 });
 
 // Función para generar un ID único para la partida
 function generarIdPartida() {
-    return 'partida_' + Math.random().toString(36).substr(2, 9); // Ejemplo de ID aleatorio
-  }
-// Socket.IO connection
-let partidas = [];
+  return 'partida_' + Math.random().toString(36).substr(2, 9); // Ejemplo de ID aleatorio
+}
 
-io.on('connection', (socket) => { 
-    console.log('Cliente conectado:', socket.id);
+let partidas = {}; // Almacenará las partidas activas
+let usuarios = {}; // Almacenará los usuarios con su socket ID
+const jugadores = {};
 
-    // Emitir todas las partidas activas cuando un nuevo cliente se conecta
-    socket.emit('partidasActivas', partidas);
+io.on('connection', (socket) => {
+  console.log('Cliente conectado:', socket.id);
   
-    // Evento para crear una partida
-    socket.on('crearPartida', (nombre) => {
-      const idPartida = generarIdPartida(); // Generar ID de la partida
-      const partida = { id: idPartida, creador: nombre, jugadores: [nombre] };
-      partidas.push(partida); // Guardar partida en la lista
-      console.log(`Partida creada por ${nombre} con ID: ${idPartida}`);
-  
-      // Emitir el ID de la partida al creador
-      socket.emit('partidaCreada', partidaId);
-  
-      // Emitir la lista actualizada de partidas a todos los clientes
-      io.emit('partidasActivas', partidas);
-    });
-  
-    // Evento para unirse a una partida
-    socket.on('unirsePartida', (idPartida, nombre) => {
-      const partida = partidas.find(p => p.id === idPartida);
-      if (partida) {
-        partida.jugadores.push(nombre); // Agregar jugador a la partida
-        console.log(`${nombre} se ha unido a la partida ${idPartida}`);
-  
-        // Emitir la lista de jugadores actualizada a todos los jugadores
-        io.emit('partidasActivas', partidas);
-      } else {
-        console.log('Partida no encontrada');
+  // Enviar las partidas disponibles al conectarse
+  socket.emit('actualizarPartidas', Object.values(partidas));
+
+  // Login: asociar el nombre del usuario con su socket ID
+  socket.on("login", ({ nombre, socketId }) => {
+    if (nombre && socketId) {
+      // Asociar el socket.id recibido con el nombre del usuario
+      usuarios[socketId] = nombre;
+      console.log(`Usuario ${nombre} conectado con socket ID: ${socketId}`);
+    } else {
+      console.error("El nombre o socketId no es válido");
+    }
+  });
+
+  // Evento para crear una partida
+  socket.on('crearPartida', (nombre) => {
+    console.log('Partida creada por:', nombre);
+
+    const partidaId = generarIdPartida(); // Generar un ID único para la partida
+
+    // Guardar la partida en el objeto partidas
+    partidas[partidaId] = { 
+      id: partidaId, 
+      nombre: nombre, 
+      jugadores: [{ id: socket.id, nombre: usuarios[socket.id] }] 
+    };
+    console.log(`Socket jugador: ${socket.id}`);
+    console.log(`Nombre del jugador: ${usuarios[socket.id]}`);
+
+
+    // Emitir el ID de la partida creada al jugador
+    socket.emit('partidaCreada', partidaId);
+
+    // Emitir la lista de partidas a todos los clientes conectados
+    io.emit('actualizarPartidas', Object.values(partidas));
+  });
+
+  // Evento para obtener las partidas disponibles
+  socket.on('obtenerPartidas', () => {
+    const partidasDisponibles = Object.values(partidas); // Convertir partidas a array
+    socket.emit('actualizarPartidas', partidasDisponibles); // Enviar las partidas al cliente
+  });
+
+  // Evento para unirse a una partida existente
+  socket.on('unirsePartida', (partidaId) => {
+    const partida = partidas[partidaId];
+    
+    if (!partida) {
+      socket.emit('errorUnirsePartida', 'Partida no encontrada.');
+      return;
+    }
+
+    if (partida.jugadores.length >= 6) {
+      socket.emit('errorUnirsePartida', 'La partida está llena.');
+      return;
+    }
+
+    // Agregar al jugador a la partida
+    partida.jugadores.push({ id: socket.id, nombre: usuarios[socket.id] });
+
+    console.log(`Jugador ${usuarios[socket.id]} (${socket.id}) se unió a la partida ${partidaId}`);
+
+    // Emitir evento al cliente indicando que se unió correctamente
+    socket.emit('partidaUnida', partida);
+
+    // Actualizar la lista de partidas a todos los clientes
+    io.emit('actualizarPartidas', Object.values(partidas));
+  });
+
+  // Evento para desconectar
+  socket.on('disconnect', () => {
+    // Buscar y eliminar al jugador de las partidas
+    for (const [id, partida] of Object.entries(partidas)) {
+      const index = partida.jugadores.findIndex((jugador) => jugador.id === socket.id);
+      if (index !== -1) {
+        partida.jugadores.splice(index, 1);
+        console.log(`Jugador ${usuarios[socket.id]} (${socket.id}) eliminado de la partida ${id}`);
       }
-    });
-  
-    // Desconectar al cliente
-    socket.on('disconnect', () => {
-      console.log('Cliente desconectado:', socket.id);
-    });
+    }
+
+    // Limpiar las partidas sin jugadores
+    partidas = Object.fromEntries(
+      Object.entries(partidas).filter(([id, partida]) => partida.jugadores.length > 0)
+    );
+
+    // Actualizar la lista de partidas a todos los clientes
+    io.emit('actualizarPartidas', Object.values(partidas));
+  });
 });
 
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-app.use(express.static("build")); 
+app.use(express.static("build")); // Para servir archivos estáticos si fuera necesario
 
 // Endpoint para obtener el estado inicial del tablero
 app.get("/board", (req, res) => {
-    const initialBoard = [
-        // Define el estado inicial del tablero aquí
-    ];
-    res.json(initialBoard);
+  const initialBoard = [
+    // Aquí puedes definir el estado inicial del tablero si es necesario
+  ];
+  res.json(initialBoard);
 });
 
 // Inicia el servidor
-server.listen(3001);
-console.log("Servidor iniciado en http://localhost:3001");
+server.listen(3001, () => {
+  console.log("Servidor iniciado en http://localhost:3001");
+});
