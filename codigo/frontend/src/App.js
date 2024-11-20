@@ -3,6 +3,7 @@ import React from "react";
 import "./styles/App.css";
 import { useNavigate } from 'react-router-dom';
 import {io} from 'socket.io-client';
+import Dado from "./Componentes/Dado";
 
 
 const socket = io('http://localhost:3001');
@@ -24,6 +25,11 @@ const App = () => {
     navigate('/unirseJuego');
   }
 
+  const dado = () => {
+    navigate('/dado');
+  }
+
+
   return (
       <div className="contenedor">
         <h1 className="tituloStyle">Damas Chinas - Online</h1>
@@ -31,7 +37,7 @@ const App = () => {
         <div className="buttonContenedor">
           <button className="buttonStyle" onClick={crearPartida}>Crear Partida</button>
           <button className="buttonStyle" onClick={unirseJuego}>Unirse a Juego</button>
-          <button className="buttonStyle">Ver Ranking</button>
+          <button className="buttonStyle" onClick={dado}>Ver Ranking</button>
         </div>
     </div>
   );
