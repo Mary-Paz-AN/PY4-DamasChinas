@@ -1,12 +1,18 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../styles/UnirseJuego.css';
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Container, ListGroup } from 'react-bootstrap';
+import { Card, Row, Container, ListGroup, Button } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 const UnirseJuego = () => {
     const [partidas, setPartidas] = useState([]);
+    const navigate = useNavigate();
     //const [socket, setSocket] = useState(null);
+
+    const volver = () => {
+        navigate('/');
+    }
 
     useEffect(() => {
         //Simulación de conseguir las partidas
@@ -42,6 +48,10 @@ const UnirseJuego = () => {
             <div style={{margin: '10px'}}></div>
 
             <Container>
+                <Row>
+                    <Button className='buttonVolver' onClick={volver}>⭠</Button>
+                </Row>
+
                 <Row className='tituloStyle' style={{textAlign: 'center'}}>
                    <h1>Elija la partida que desee jugar:</h1> 
                 </Row>
@@ -56,7 +66,8 @@ const UnirseJuego = () => {
                             <Card.Text className='textStyle'>
                                 <div><b style={{color: '#8f4039'}}>Id:</b> {partida.id}</div>
                                 <div><b style={{color: '#8f4039'}}>Creador:</b> {partida.nombre}</div>
-                                <div style={{margin: '8px'}}></div>
+
+                                <div style={{margin: '10px'}}></div>
                                 <div style={{textAlign: 'center', color: '#8f4039'}}><b>Jugadores:</b></div>
                             </Card.Text>
                         </Card.Body>
