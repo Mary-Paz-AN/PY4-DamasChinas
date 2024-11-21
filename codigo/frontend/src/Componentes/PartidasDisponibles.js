@@ -36,27 +36,7 @@ const PartidasDisponibles = () => {
   }, []);
 
   useEffect(() => {
-    // Escuchar evento de partida iniciada
-    socketJuego.socket.on('partidaIniciada', (datos) => {
-      console.log(`Partida ${datos.id} iniciada con jugadores:`, datos.jugadores);
-      // Añadir un pequeño delay para asegurar que todos los jugadores reciban el evento
-      setTimeout(() => {
-        navigate(`/juego/${datos.id}`);
-      }, 500);
-    });
-  
-    socketJuego.socket.on('errorIniciarPartida', (error) => {
-      alert(error);
-      setLoading(false);
-    });
-  
-    return () => {
-      socketJuego.socket.off('partidaIniciada');
-      socketJuego.socket.off('errorIniciarPartida');
-    };
-  }, [navigate]);
 
-  useEffect(() => {
     socketJuego.socket.on('errorUnirsePartida', (error) => {
       alert(`No se pudo unir a la partida: ${error}`);
       setLoading(false);
@@ -66,17 +46,38 @@ const PartidasDisponibles = () => {
       console.log(`Te uniste a la partida: ${partida.id}`);
       setLoading(false);
     });
+
+    socketJuego.socket.on('errorIniciarPartida', (error) => {
+      alert(error);
+      setLoading(false);
+    });
+
+    // Listener para partidas eliminadas
+    socketJuego.onPartidaEliminada(({partidaId, razon}) => {
+      setPartidas(prevPartidas => 
+        prevPartidas.filter(partida => partida.id !== partidaId)
+      );
+      alert(`Partida ${partidaId} eliminada: ${razon}`);
+    });
   
     return () => {
       socketJuego.socket.off('errorUnirsePartida');
       socketJuego.socket.off('partidaUnida');
+      socketJuego.socket.off('partidaEliminada');
+      socketJuego.socket.off('partidaIniciada');
+      socketJuego.socket.off('errorIniciarPartida');
     };
   }, []);
 
   const handleEntrarJuego = (partidaId) => {
     setLoading(true);
-    socketJuego.socket.emit('iniciarPartida', partidaId);
-    navigate('/GameArea');
+    socketJuego.iniciarPartida(partidaId);
+
+    // Escuchar la confirmación de inicio de partida
+    socketJuego.socket.on('partidaIniciada', (datos) => {
+      console.log(`Partida ${datos.id} iniciada con jugadores:`, datos.jugadores);
+      navigate('/GameArea');
+    });
   };  
 
   const handleUnirsePartida = (id) => {
@@ -138,7 +139,7 @@ const PartidasDisponibles = () => {
                   ))}
                 </ListGroup>
                 <Card.Body>
-                  {partida.jugadores.length === partida.cantJug ? (
+                  {partida.jugadores.length >= partida.cantJug ? (
                     <Button
                       className="buttonEstilo"
                       onClick={() => handleEntrarJuego(partida.id)}

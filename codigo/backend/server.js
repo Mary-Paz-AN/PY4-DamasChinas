@@ -17,7 +17,7 @@ const io = new SocketServer(server, {
 let partidas = {}; // Almacenará las partidas activas
 let usuarios = {}; // Almacenará los usuarios con su socket ID
 const partidasJugadas = {}; //Almacena las partidas que se jugaron
-const tiempoPartida = 3 * 60 * 1000; //El tiempo que se tiene para iniciar una partida
+const tiempoPartida = 1 * 60 * 1000; //El tiempo que se tiene para iniciar una partida
 
 
 // Función para generar un ID único para la partida
@@ -108,36 +108,34 @@ io.on('connection', (socket) => {
   });
 
   //Evento para iniciar una partida
-  socket.on('iniciarPartida', (partidaId) => {
+  socket.on('iniciarPartida', ({partidaId}) => {
     const partida = partidas[partidaId];
+    
     if (!partida) {
       socket.emit('errorIniciarPartida', 'Partida no encontrada.');
       return;
     }
-  
+    
+    partida.iniciada = true;
     console.log(`Intentando iniciar partida ${partidaId}`);
     console.log(`Número de jugadores: ${partida.jugadores.length}`);
     console.log(`Número de jugadores requeridos: ${partida.cantJug}`);
-  
-    // Cambiar la comparación para usar el número exacto de jugadores
-    if (partida.jugadores.length === partida.cantJug) {
-      // Unir todos los jugadores a una sala con el ID de la partida
 
-      partida.jugadores.forEach(jugador => {
-        const socketCliente = io.sockets.sockets.get(jugador.id);
-        if (socketCliente) {
-          socketCliente.join(partidaId);
-        }
-      });
-  
-      // Emitir evento de inicio de partida a todos los jugadores en la sala
-      io.to(partidaId).emit('partidaIniciada', { 
-        id: partidaId,
-        jugadores: partida.jugadores
-      });
-    } else {
-      socket.emit('errorIniciarPartida', `No hay suficientes jugadores. Se necesitan ${partida.cantJug}, hay ${partida.jugadores.length}.`);
-    }
+    // Unir todos los jugadores a una sala con el ID de la partida
+    partida.jugadores.forEach(jugador => {
+      const socketCliente = io.sockets.sockets.get(jugador.id);
+      if (socketCliente) {
+        socketCliente.join(partidaId);
+      }
+    });
+
+    // Emitir evento de inicio de partida a todos los jugadores en la sala
+    io.to(partidaId).emit('partidaIniciada', { 
+      id: partidaId,
+      jugadores: partida.jugadores
+    });
+
+    console.log('\n');
   });
 
   socket.on('verificarJugadoresPartida', (partidaId) => {
@@ -177,7 +175,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (partida.jugadores.length >= cantJug) {
+    if (partida.jugadores.length >= partida.cantJug) {
       socket.emit('errorUnirsePartida', 'La partida ya está llena.');
       return;
     }
@@ -201,6 +199,12 @@ io.on('connection', (socket) => {
     if (partida) {
       socket.emit('detallesPartida', partida);
     }
+  });
+
+  // Evento para obtener las partidas disponibles
+  socket.on('obtenerPartidas', () => {
+    const partidasDisponibles = Object.values(partidas); // Convertir partidas a array
+    socket.emit('actualizarPartidas', partidasDisponibles); // Enviar las partidas al cliente
   });
 
   // Manejar lanzamientos de dado

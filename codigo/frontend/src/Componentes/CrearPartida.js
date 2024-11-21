@@ -31,7 +31,6 @@ const CrearPartida = () => {
   }, []);  // Este useEffect solo se ejecuta una vez cuando se monta el componente
 
   const handleCrearPartida = () => {
-    //AQUI HAY QUE EMPEZAR A CRONOMETRAR LOS 3 MINUTOS
     if (nombre.trim()) {
       socketJuego.crearPartida(nombre, tipoJuego, cantJugadores);  // Emitir al servidor para crear la partida
     }

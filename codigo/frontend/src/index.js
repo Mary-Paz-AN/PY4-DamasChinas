@@ -5,6 +5,7 @@ import App from "./App";
 import CrearPartida from "./Componentes/CrearPartida";
 import PartidasDisponibles from "./Componentes/PartidasDisponibles";
 import Turno from "./Componentes/Turno";
+import GameArea from "./Componentes/GameArea";
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
