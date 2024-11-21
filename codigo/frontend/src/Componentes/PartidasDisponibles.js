@@ -39,25 +39,41 @@ const PartidasDisponibles = () => {
   }, []);
 
   useEffect(() => {
+    // Manejar eventos de unirse a partida y errores
     socketJuego.socket.on('errorUnirsePartida', (error) => {
       alert(`No se pudo unir a la partida: ${error}`);
     });
   
     socketJuego.socket.on('partidaUnida', (partida) => {
       console.log(`Te uniste a la partida: ${partida.id}`);
-      // Optionally navigate to game room or do something else
     });
   
-    // Cleanup listeners
+    // Listener para partidas eliminadas
+    socketJuego.onPartidaEliminada(({partidaId, razon}) => {
+      setPartidas(prevPartidas => 
+        prevPartidas.filter(partida => partida.id !== partidaId)
+      );
+      alert(`Partida ${partidaId} eliminada: ${razon}`);
+    });
+  
+    // Limpiar todos los listeners
     return () => {
       socketJuego.socket.off('errorUnirsePartida');
       socketJuego.socket.off('partidaUnida');
+      socketJuego.socket.off('partidaEliminada');
+      socketJuego.socket.off('partidaIniciada');
     };
   }, []);
 
-  //Funcion para iniciar entrar al juego
-  const handleEntrarJuego = () => {
-    console.log('navigate');
+  //Funcion para iniciar el juego
+  const handleEntrarJuego = (partidaId) => {
+    socketJuego.iniciarPartida(partidaId);
+
+    // Escuchar la confirmación de inicio de partida
+    socketJuego.socket.on('partidaIniciada', (data) => {
+      console.log('Partida iniciada:', data);
+      //navigate('/juego', { state: { partidaId } });
+    });
   }
 
   // Función para unirse a una partida
@@ -119,7 +135,7 @@ const PartidasDisponibles = () => {
                       variant="sucess"
                       style={{ width: '100%' }}
                     >
-                      Entrar
+                      Iniciar
                     </Button>
                   ) : (
                     <Button

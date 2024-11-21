@@ -16,6 +16,11 @@ class Juego {
     });
   }
 
+  // Método para iniciar una partida
+  iniciarPartida(partidaId) {
+    this.socket.emit('iniciarPartida', { partidaId });
+  }
+
   // Método para obtener las partidas disponibles
   obtenerPartidas() {
     this.socket.emit('obtenerPartidas');
@@ -41,12 +46,24 @@ class Juego {
     this.socket.on('errorUnirsePartida', callback);
   }
 
+  // Método para escuchar cuando una partida es eliminada
+  onPartidaEliminada(callback) {
+    this.socket.on('partidaEliminada', callback);
+  }
+
+  // Método para escuchar cuando una partida es iniciada
+  onPartidaIniciada(callback) {
+    this.socket.on('partidaIniciada', callback);
+  }
+
   // Método para limpiar los listeners
   limpiarListeners() {
     this.socket.off('actualizarPartidas');
     this.socket.off('partidaCreada');
     this.socket.off('partidaUnida');
     this.socket.off('errorUnirsePartida');
+    this.socket.off('partidaEliminada');
+    this.socket.off('partidaIniciada');
   }
 }
 

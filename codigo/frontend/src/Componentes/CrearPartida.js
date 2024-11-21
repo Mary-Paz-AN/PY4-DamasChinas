@@ -22,6 +22,7 @@ const CrearPartida = () => {
       console.log(`Partida creada con ID: ${id}`);
       setPartidaId(id);  // Asignamos el ID de la partida a la variable de estado
     });
+
     // Limpiar los eventos cuando el componente se desmonte
     return () => {
       socketJuego.socket.off('partidaCreada');
@@ -30,6 +31,7 @@ const CrearPartida = () => {
   }, []);  // Este useEffect solo se ejecuta una vez cuando se monta el componente
 
   const handleCrearPartida = () => {
+    //AQUI HAY QUE EMPEZAR A CRONOMETRAR LOS 3 MINUTOS
     if (nombre.trim()) {
       socketJuego.crearPartida(nombre, tipoJuego, cantJugadores);  // Emitir al servidor para crear la partida
     }
