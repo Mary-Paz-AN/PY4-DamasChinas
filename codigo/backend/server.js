@@ -79,9 +79,11 @@ io.on("connection", (socket) => {
       tipo,
       cantJug,
       iniciada: false,
-      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }] ,
-      creada: Date.now()
-    };
+      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }],
+      creada: Date.now(),
+      turnoActual: 1,  // Comenzar con el color rojo
+      coloresJugadores: [1, 4]  // Colores de los jugadores
+  };
 
     console.log(`Socket jugador: ${socket.id}`);
     console.log(`Nombre del jugador: ${usuarios[socket.id].nombre}`);
@@ -202,10 +204,44 @@ io.on("connection", (socket) => {
   });
 
   socket.on('moverFicha', (data) => {
-    // Actualizar el estado del tablero en el servidor (opcional, si necesitas guardarlo)
-    // Emitir el movimiento a todos los jugadores
-    io.emit('actualizarTablero', data);  // 'actualizarTablero' es el evento que se emitirá a los clientes
-  });
+    // Primero, validar que la partida existe
+    const partidaActual = partidas[data.partidaId];
+    if (!partidaActual) {
+        console.error('Partida no encontrada:', data.partidaId);
+        return;
+    }
+
+    // Verificar que coloresJugadores exista
+    if (!partidaActual.coloresJugadores) {
+        // Si no existe, puedes inicializarlo
+        partidaActual.coloresJugadores = [5, 1];
+    }
+
+    // Verificar que currentTurn esté definido
+    if (data.currentTurn === undefined) {
+        console.error('Turno actual no definido');
+        return;
+    }
+
+    // Cambiar el turno
+    const indiceJugadorActual = partidaActual.coloresJugadores.indexOf(data.currentTurn);
+    
+    // Si no se encuentra el índice, usar el primer color
+    const siguienteIndice = indiceJugadorActual === -1 
+        ? 0 
+        : (indiceJugadorActual + 1) % partidaActual.coloresJugadores.length;
+    
+    const siguienteTurno = partidaActual.coloresJugadores[siguienteIndice];
+
+    // Actualiza el turno en la partida
+    partidaActual.turnoActual = siguienteTurno;
+
+    // Emite el nuevo estado del tablero y el turno
+    io.to(data.partidaId).emit('actualizarTablero', {
+        newBoard: data.newBoard,
+        currentTurn: siguienteTurno
+    });
+});
 
   socket.on('obtenerDetallesPartida', (partidaId) => {
     const partida = partidas[partidaId];
