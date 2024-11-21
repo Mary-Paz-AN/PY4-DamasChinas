@@ -189,6 +189,25 @@ io.on("connection", (socket) => {
     console.log('\n');
   });
 
+  // Actualizar estado del tablero
+  socket.on('actualizarTablero', ({ partidaId, nuevoTablero }) => {
+    const partida = partidas[partidaId];
+    
+    if (partida) {
+      partida.tablero = nuevoTablero;
+      
+      // Emitir a todos los jugadores en la sala del juego
+      io.to(partidaId).emit('tableroActualizado', nuevoTablero);
+    }
+  });
+
+  socket.on('moverFicha', (data) => {
+    // Actualizar el estado del tablero en el servidor (opcional, si necesitas guardarlo)
+    // Emitir el movimiento a todos los jugadores
+    io.emit('actualizarTablero', data);  // 'actualizarTablero' es el evento que se emitirá a los clientes
+  });
+
+
   socket.on('obtenerDetallesPartida', (partidaId) => {
     const partida = partidas[partidaId];
     if (partida) {
