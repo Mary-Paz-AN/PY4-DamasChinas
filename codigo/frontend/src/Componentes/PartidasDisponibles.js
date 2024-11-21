@@ -76,6 +76,7 @@ const PartidasDisponibles = () => {
   const handleEntrarJuego = (partidaId) => {
     setLoading(true);
     socketJuego.socket.emit('iniciarPartida', partidaId);
+    navigate('/GameArea');
   };  
 
   const handleUnirsePartida = (id) => {
