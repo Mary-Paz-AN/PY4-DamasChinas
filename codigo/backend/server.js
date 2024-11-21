@@ -14,14 +14,40 @@ const io = new SocketServer(server, {
   },
 });
 
+let partidas = {}; // Almacenará las partidas activas
+let usuarios = {}; // Almacenará los usuarios con su socket ID
+let ranking = {}; // Almacenará el ranking con formato {id: {ganador, creador, id}}
+const tiempoPartida = 1 * 60 * 1000; //El tiempo que se tiene para iniciar una partida
+
 // Función para generar un ID único para la partida
 function generarIdPartida() {
   return "partida_" + Math.random().toString(36).substr(2, 9); // Ejemplo de ID aleatorio
 }
 
-let partidas = {}; // Almacenará las partidas activas
-let usuarios = {}; // Almacenará los usuarios con su socket ID
-let ranking = {}; // Almacenará el ranking con formato {id: {ganador, creador, id}}
+// Función para eliminar una partida
+function eliminarPartida(partidaId) {
+  const partida = partidas[partidaId];
+  
+  //Verifica si la partida fue iniciada
+  if(partida && !partida.iniciada) {
+    //Eliminar la partida
+    delete partidas[partidaId];
+    console.log(`Se eliminó la partida ${partidaId} por no iniciarse a tiempo.`);
+
+    //Avisar que la partida fue eliminada a los jugadores
+    partida.jugadores.forEach(jugador => {
+      io.to(jugador.id).emit('partidaEliminada', {
+        partidaId,
+        razon: 'Timepo para inicar la partida terminado.'
+      });
+    });
+
+    //Actualizar la lista de partidas
+    io.emit('actualizarPartidas', Object.values(partidas));
+
+    console.log('\n');
+  }
+}
 
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
@@ -41,57 +67,169 @@ io.on("connection", (socket) => {
   });
 
   // Evento para crear una partida
-  socket.on("crearPartida", ({ nombre, tipo, cantJug }) => {
-    console.log("Partida creada por:", nombre);
+  socket.on('crearPartida', ({nombre, tipo, cantJug}) => {
+    console.log('Partida creada por:', nombre);
 
     const partidaId = generarIdPartida(); // Generar un ID único para la partida
 
     // Guardar la partida en el objeto partidas
-    partidas[partidaId] = {
-      id: partidaId,
+    partidas[partidaId] = { 
+      id: partidaId, 
       nombre,
       tipo,
       cantJug,
-      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }],
+      iniciada: false,
+      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }] ,
+      creada: Date.now()
     };
 
-    console.log(partidas[partidaId]);
     console.log(`Socket jugador: ${socket.id}`);
     console.log(`Nombre del jugador: ${usuarios[socket.id].nombre}`);
+    console.log(partidas);
 
     // Emitir el ID de la partida creada al jugador
-    socket.emit("partidaCreada", partidaId);
+    socket.emit('partidaCreada', partidaId);
 
     // Emitir la lista de partidas a todos los clientes conectados
-    io.emit("actualizarPartidas", Object.values(partidas));
+    io.emit('actualizarPartidas', Object.values(partidas));
+
+    //Inicia el temporizador para la eliminación de la partida
+    setTimeout(() => {
+      eliminarPartida(partidaId);
+    }, tiempoPartida);
+
+    console.log('\n');
+
+  });
+
+  //Evento para iniciar una partida
+  socket.on('iniciarPartida', ({partidaId}) => {
+    const partida = partidas[partidaId];
+    
+    if (!partida) {
+      socket.emit('errorIniciarPartida', 'Partida no encontrada.');
+      return;
+    }
+    
+    partida.iniciada = true;
+    console.log(`Intentando iniciar partida ${partidaId}`);
+    console.log(`Número de jugadores: ${partida.jugadores.length}`);
+    console.log(`Número de jugadores requeridos: ${partida.cantJug}`);
+
+    // Unir todos los jugadores a una sala con el ID de la partida
+    partida.jugadores.forEach(jugador => {
+      const socketCliente = io.sockets.sockets.get(jugador.id);
+      if (socketCliente) {
+        socketCliente.join(partidaId);
+      }
+    });
+
+    // Emitir evento de inicio de partida a todos los jugadores en la sala
+    io.to(partidaId).emit('partidaIniciada', { 
+      id: partidaId,
+      jugadores: partida.jugadores
+    });
+
+    console.log('\n');
+  });
+
+  socket.on('verificarJugadoresPartida', (partidaId) => {
+    const partida = partidas[partidaId];
+    if (partida) {
+      socket.emit('jugadoresPartida', partida.jugadores);
+    } else {
+      socket.emit('errorPartida', 'Partida no encontrada');
+    }
   });
 
   // Evento para unirse a una partida existente
-  socket.on("unirsePartida", ({ partidaId }) => {
+  socket.on('unirsePartida', ({partidaId, socketID}) => {
     const partida = partidas[partidaId];
+    
+    //Verifica que la partida exista
     if (!partida) {
-      socket.emit("errorUnirsePartida", "Partida no encontrada.");
+      socket.emit('errorUnirsePartida', 'Partida no encontrada.');
       return;
     }
 
-    // Verificar si la partida está llena
-    if (partida.jugadores.length >= parseInt(partida.cantJug, 10)) {
-      socket.emit("errorUnirsePartida", "La partida está llena.");
+    //Verificar si la partida ya fue iniciada o si el tiempo terminó
+    const tiempo = Date.now() - partida.creada;
+
+    if(partida.iniciada || tiempo >= tiempoPartida) {
+      socket.emit('errorUnirsePartida', 'La partida no está disponible.');
+      return;
+    }
+
+    //Verificar si el jugador ya esta en la partida
+    const jugadorPartida = partida.jugadores.some(
+      (jugador) => jugador.id === socketID
+    );
+
+    if (jugadorPartida) {
+      socket.emit('errorUnirsePartida', 'Ya estás en esta partida.');
+      return;
+    }
+
+    if (partida.jugadores.length >= partida.cantJug) {
+      socket.emit('errorUnirsePartida', 'La partida ya está llena.');
       return;
     }
 
     // Agregar al jugador a la partida
-    partida.jugadores.push({ id: socket.id, nombre: usuarios[socket.id]?.nombre });
+    partida.jugadores.push({ id: socketID, nombre: usuarios[socketID].nombre });
 
-    console.log(
-      `Jugador ${usuarios[socket.id]?.nombre} (${socket.id}) se unió a la partida ${partidaId}`
-    );
+    console.log(`Jugador ${usuarios[socketID].nombre} (${socketID}) se unió a la partida ${partidaId}`);
 
     // Emitir evento al cliente indicando que se unió correctamente
-    socket.emit("partidaUnida", partida);
+    socket.emit('partidaUnida', partida);
 
     // Actualizar la lista de partidas a todos los clientes
-    io.emit("actualizarPartidas", Object.values(partidas));
+    io.emit('actualizarPartidas', Object.values(partidas));
+
+    console.log('\n');
+  });
+
+  socket.on('obtenerDetallesPartida', (partidaId) => {
+    const partida = partidas[partidaId];
+    if (partida) {
+      socket.emit('detallesPartida', partida);
+    }
+  });
+
+  // Evento para obtener las partidas disponibles
+  socket.on('obtenerPartidas', () => {
+    const partidasDisponibles = Object.values(partidas); // Convertir partidas a array
+    socket.emit('actualizarPartidas', partidasDisponibles); // Enviar las partidas al cliente
+  });
+
+  // Manejar lanzamientos de dado
+  socket.on('lanzamientoDado', (data) => {
+    const partida = partidas[data.partidaId];
+    if (!partida) return;
+
+    // Guardar el resultado del dado
+    if (!partida.diceRolls) {
+        partida.diceRolls = {};
+    }
+    partida.diceRolls[data.jugador.id] = data.numero;
+
+    // Emitir el resultado a todos los jugadores
+    io.to(data.partidaId).emit('dadoLanzado', {
+        jugador: data.jugador,
+        numero: data.numero
+    });
+
+    // Si todos han tirado, determinar el orden
+    if (Object.keys(partida.diceRolls).length === partida.jugadores.length) {
+        const ordenJugadores = partida.jugadores.sort((a, b) => {
+            return partida.diceRolls[b.id] - partida.diceRolls[a.id];
+        });
+
+        partida.ordenJugadores = ordenJugadores;
+        partida.turnoActual = 0;
+
+        io.to(data.partidaId).emit('ordenJuegoDeterminado', ordenJugadores);
+      }
   });
 
   // Evento para agregar un elemento al ranking
