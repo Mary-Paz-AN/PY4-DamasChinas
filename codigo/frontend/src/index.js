@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from "./App"; 
 import CrearPartida from "./Componentes/CrearPartida";
 import PartidasDisponibles from "./Componentes/PartidasDisponibles";
+import Ranking from "./Componentes/Ranking";
 import Turno from "./Componentes/Turno";
 import GameArea from "./Componentes/GameArea";
 
@@ -16,6 +17,7 @@ root.render(
             <Route path="/crearPartida" element={<CrearPartida />} />
             <Route path="/partidasDisponibles" element={<PartidasDisponibles />} />
             <Route path="/GameArea" element={<GameArea />} />
+            <Route path="/Ranking" element={<Ranking partidas={[]} />} />
         </Routes>
     </BrowserRouter>
   </React.StrictMode>
