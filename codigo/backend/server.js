@@ -17,7 +17,7 @@ const io = new SocketServer(server, {
 let partidas = {}; // Almacenará las partidas activas
 let usuarios = {}; // Almacenará los usuarios con su socket ID
 let ranking = {}; // Almacenará el ranking con formato {id: {ganador, creador, id}}
-const tiempoPartida = 1 * 60 * 1000; //El tiempo que se tiene para iniciar una partida
+const tiempoPartida = 3 * 60 * 1000; //El tiempo que se tiene para iniciar una partida
 
 // Función para generar un ID único para la partida
 function generarIdPartida() {
