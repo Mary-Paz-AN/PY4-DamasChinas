@@ -1,63 +1,69 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import Juego from "../models/Juego.js";
 import socket from '../Sockets.js';  
 
 const socketJuego = new Juego(socket);
 
 const Turnos = () => {
+    const navigate = useNavigate();
     const { partidaId } = useParams();
+
+    // Estados del componente
     const [jugadores, setJugadores] = useState([]);
-    const [dadosLanzados, setDadosLanzados] = useState({});
     const [jugadorActual, setJugadorActual] = useState(0);
     const [fin, setFin] = useState(false);
     const [lanzando, setLanzando] = useState(false);
     const [resultadoActual, setResultadoActual] = useState(0);
 
-    //Cosigue los jugadores y los actualiza si se lanzo el dado
+    // Referencias para manejar estados mutables
+    const dadosLanzadosRef = useRef({});
+    const jugadoresRef = useRef([]);
+
+    // Obtener jugadores de la partida y configurar los listeners
     useEffect(() => {
         socketJuego.socket.emit('verificarJugadoresPartida', partidaId);
-        
+
         socketJuego.socket.on('jugadoresPartida', (players) => {
-            setJugadores(players.map(p => p.nombre));
+            const nombresJugadores = players.map(p => p.nombre);
+            setJugadores(nombresJugadores);
+            jugadoresRef.current = nombresJugadores;
         });
 
         socketJuego.socket.on('dadoLanzado', ({ jugador, numero }) => {
             setLanzando(true);
             setResultadoActual(numero);
-            
-            setTimeout(() => {
-                setDadosLanzados(prevDados => ({
-                    ...prevDados,
-                    [jugador.nombre]: numero
-                }));
-                setLanzando(false);
-                setResultadoActual(0);
 
-                if (Object.keys(dadosLanzados).length + 1 === jugadores.length) {
+            setTimeout(() => {
+                const nuevosDados = {
+                    ...dadosLanzadosRef.current,
+                    [jugador.nombre]: numero,
+                };
+
+                dadosLanzadosRef.current = nuevosDados;
+
+                if (Object.keys(nuevosDados).length === jugadoresRef.current.length) {
                     setFin(true);
                 } else {
-                    setJugadorActual(prev => prev + 1);
+                    setJugadorActual((prev) => (prev + 1) % jugadoresRef.current.length);
                 }
+
+                setResultadoActual(0);
+                setLanzando(false);
             }, 2000);
         });
 
-        //if(listo) {
-        //    navigate('/game/{jugadores}');
-       // }
-
         return () => {
-            socketJuego.socket.off('jugadoresPartida');
-            socketJuego.socket.off('dadoLanzado');
+            socketJuego.socket.removeAllListeners(); // Elimina todos los listeners del socket
         };
-    }, [partidaId, jugadores]);
+    }, [partidaId]);
 
-    //Hace la simulación de lanzr el dado y emite el evento para actualizar en los jugadores
+    // Maneja el lanzamiento del dado
     const lanzarDado = () => {
         const numero = Math.floor(Math.random() * 6) + 1;
         const jugador = {
             id: socketJuego.socket.id,
-            nombre: jugadores[jugadorActual]
+            nombre: jugadores[jugadorActual],
         };
 
         socketJuego.socket.emit('lanzamientoDado', { 
@@ -67,12 +73,17 @@ const Turnos = () => {
         });
     };
 
+    // Redirige al tablero principal cuando termine la partida
+    const finalizarPartida = () => {
+        navigate(`/juego/partida/${partidaId}`);
+    };
+
     return (
         <div className="contenedor">
             {!fin ? (
                 <div className="buttonContenedor">
                     <h3 className="tituloStyle">
-                        {jugadores[jugadorActual]} lanzá el dado
+                        Turno de: {jugadores[jugadorActual]}
                     </h3>
                     <div>
                         {lanzando ? (
@@ -81,10 +92,10 @@ const Turnos = () => {
                                 alt={`Dado ${resultadoActual}`} 
                                 style={{ width: '50px' }} 
                             />
-                        ) : dadosLanzados[jugadores[jugadorActual]] ? (
+                        ) : dadosLanzadosRef.current[jugadores[jugadorActual]] ? (
                             <img 
-                                src={`/images/${dadosLanzados[jugadores[jugadorActual]]}.png`} 
-                                alt={`Dado ${dadosLanzados[jugadores[jugadorActual]]}`} 
+                                src={`/images/${dadosLanzadosRef.current[jugadores[jugadorActual]]}.png`} 
+                                alt={`Dado ${dadosLanzadosRef.current[jugadores[jugadorActual]]}`} 
                                 style={{ width: '50px' }} 
                             />
                         ) : (
@@ -98,24 +109,30 @@ const Turnos = () => {
                     <button 
                         className="buttonStyle" 
                         onClick={lanzarDado}
-                        disabled={dadosLanzados[jugadores[jugadorActual]] || lanzando}
+                        disabled={dadosLanzadosRef.current[jugadores[jugadorActual]] || lanzando}
                     >
                         Lanzar Dado
                     </button>
                 </div>
             ) : (
                 <div>
-                    <h2>Resultados de Dados:</h2>
+                    <h2>Resultados finales:</h2>
                     {jugadores.map(nombre => (
                         <div key={nombre}>
                             {nombre}: 
                             <img 
-                                src={`/images/${dadosLanzados[nombre]}.png`} 
-                                alt={`Dado ${dadosLanzados[nombre]}`} 
+                                src={`/images/${dadosLanzadosRef.current[nombre]}.png`} 
+                                alt={`Dado ${dadosLanzadosRef.current[nombre]}`} 
                                 style={{ width: '50px' }} 
                             />
                         </div>
                     ))}
+                    <button 
+                        className="buttonStyle" 
+                        onClick={finalizarPartida}
+                    >
+                        Volver al tablero
+                    </button>
                 </div>
             )}
         </div>
