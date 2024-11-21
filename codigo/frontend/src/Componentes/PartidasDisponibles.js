@@ -9,29 +9,26 @@ import socket from '../Sockets.js';
 const socketJuego = new Juego(socket);    
 
 const PartidasDisponibles = () => {
-  const [partidas, setPartidas] = useState([]); // Estado para almacenar partidas disponibles
+  const [partidas, setPartidas] = useState([]);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Solicitar la lista inicial de partidas después de conectarse al servidor
     const obtenerPartidasIniciales = () => {
       socketJuego.socket.emit("obtenerPartidas");
     };
   
-    // Escuchar actualizaciones de partidas disponibles
     socketJuego.socket.on("actualizarPartidas", (nuevasPartidas) => {
       console.log("Partidas disponibles actualizadas:", nuevasPartidas);
       setPartidas(nuevasPartidas);
     });
   
-    // Esperar la conexión antes de solicitar partidas
     if (socketJuego.socket.connected) {
       obtenerPartidasIniciales();
     } else {
       socketJuego.socket.on("connect", obtenerPartidasIniciales);
     }
   
-    // Limpia los listeners al desmontar el componente
     return () => {
       socketJuego.socket.off("actualizarPartidas");
       socketJuego.socket.off("connect", obtenerPartidasIniciales);
@@ -39,45 +36,50 @@ const PartidasDisponibles = () => {
   }, []);
 
   useEffect(() => {
-    // Manejar eventos de unirse a partida y errores
+    // Escuchar evento de partida iniciada
+    socketJuego.socket.on('partidaIniciada', (datos) => {
+      console.log(`Partida ${datos.id} iniciada con jugadores:`, datos.jugadores);
+      // Añadir un pequeño delay para asegurar que todos los jugadores reciban el evento
+      setTimeout(() => {
+        navigate(`/juego/${datos.id}`);
+      }, 500);
+    });
+  
+    socketJuego.socket.on('errorIniciarPartida', (error) => {
+      alert(error);
+      setLoading(false);
+    });
+  
+    return () => {
+      socketJuego.socket.off('partidaIniciada');
+      socketJuego.socket.off('errorIniciarPartida');
+    };
+  }, [navigate]);
+
+  useEffect(() => {
     socketJuego.socket.on('errorUnirsePartida', (error) => {
       alert(`No se pudo unir a la partida: ${error}`);
+      setLoading(false);
     });
   
     socketJuego.socket.on('partidaUnida', (partida) => {
       console.log(`Te uniste a la partida: ${partida.id}`);
+      setLoading(false);
     });
   
-    // Listener para partidas eliminadas
-    socketJuego.onPartidaEliminada(({partidaId, razon}) => {
-      setPartidas(prevPartidas => 
-        prevPartidas.filter(partida => partida.id !== partidaId)
-      );
-      alert(`Partida ${partidaId} eliminada: ${razon}`);
-    });
-  
-    // Limpiar todos los listeners
     return () => {
       socketJuego.socket.off('errorUnirsePartida');
       socketJuego.socket.off('partidaUnida');
-      socketJuego.socket.off('partidaEliminada');
-      socketJuego.socket.off('partidaIniciada');
     };
   }, []);
 
-  //Funcion para iniciar el juego
   const handleEntrarJuego = (partidaId) => {
-    socketJuego.iniciarPartida(partidaId);
+    setLoading(true);
+    socketJuego.socket.emit('iniciarPartida', partidaId);
+  };  
 
-    // Escuchar la confirmación de inicio de partida
-    socketJuego.socket.on('partidaIniciada', (data) => {
-      console.log('Partida iniciada:', data);
-      //navigate('/juego', { state: { partidaId } });
-    });
-  }
-
-  // Función para unirse a una partida
   const handleUnirsePartida = (id) => {
+    setLoading(true);
     socketJuego.unirsePartida(id);
   };
 
@@ -91,11 +93,19 @@ const PartidasDisponibles = () => {
 
       <Container>
         <Row>
-          <button className='buttonStyle'style={{margin: '10px', width: '40px', height: '40px'}} onClick={volver}>⭠</button>
+          <button 
+            className='buttonStyle' 
+            style={{margin: '10px', width: '40px', height: '40px'}} 
+            onClick={volver}
+            disabled={loading}
+          >
+            ⭠
+          </button>
         </Row>
 
         <Row className='tituloStyle' style={{ textAlign: 'center' }}>
           <h1>Elija la partida que desee jugar:</h1>
+          {loading && <p>Cargando...</p>}
         </Row>
 
         <div style={{ margin: '10px' }}></div>
@@ -127,15 +137,15 @@ const PartidasDisponibles = () => {
                   ))}
                 </ListGroup>
                 <Card.Body>
-                  {partida.jugadores.length >= partida.cantJug ?
-                  (
+                  {partida.jugadores.length === partida.cantJug ? (
                     <Button
                       className="buttonEstilo"
                       onClick={() => handleEntrarJuego(partida.id)}
-                      variant="sucess"
+                      variant="success"
                       style={{ width: '100%' }}
+                      disabled={loading}
                     >
-                      Iniciar
+                      {loading ? 'Iniciando...' : 'Entrar'}
                     </Button>
                   ) : (
                     <Button
@@ -143,8 +153,9 @@ const PartidasDisponibles = () => {
                       onClick={() => handleUnirsePartida(partida.id)} 
                       variant="primary"
                       style={{ width: '100%' }}
+                      disabled={loading}
                     >
-                      Unirse
+                      {loading ? 'Uniéndose...' : 'Unirse'}
                     </Button>
                   )}
                 </Card.Body>
@@ -158,4 +169,5 @@ const PartidasDisponibles = () => {
     </div>
   );
 };
+
 export default PartidasDisponibles;
