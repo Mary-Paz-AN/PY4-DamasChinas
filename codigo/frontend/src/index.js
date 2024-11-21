@@ -14,6 +14,7 @@ root.render(
             <Route path="/" element={<App />} />
             <Route path="/crearPartida" element={<CrearPartida />} />
             <Route path="/partidasDisponibles" element={<PartidasDisponibles />} />
+            <Route path="/GameArea" element={<GameArea />} />
         </Routes>
     </BrowserRouter>
   </React.StrictMode>
