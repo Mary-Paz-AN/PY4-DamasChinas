@@ -116,17 +116,18 @@ const Turnos = () => {
                 </div>
             ) : (
                 <div>
-                    <h2>Resultados finales:</h2>
+                    <h2 className="tituloStyle">Resultados finales:</h2>
                     {jugadores.map(nombre => (
-                        <div key={nombre}>
+                        <div style={{color: '#8f4039', fontWeight: '600', fontSize: '18px'}} key={nombre}>
                             {nombre}: 
                             <img 
                                 src={`/images/${dadosLanzadosRef.current[nombre]}.png`} 
                                 alt={`Dado ${dadosLanzadosRef.current[nombre]}`} 
-                                style={{ width: '50px' }} 
+                                style={{ width: '50px', marginLeft: '5px' }} 
                             />
                         </div>
                     ))}
+                    <div style={{margin: '10px'}}></div>
                     <button 
                         className="buttonStyle" 
                         onClick={finalizarPartida}
