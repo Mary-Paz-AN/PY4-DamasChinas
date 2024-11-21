@@ -1,11 +1,9 @@
 // Dependencies
-import express from 'express';
-import cors from 'cors';
-import http from 'http';
-import { Server as SocketServer } from 'socket.io';
-import { DamasChinas, crearPartidaDamasChinas } from'./models/Juego.js';
+import express from "express";
+import cors from "cors";
+import http from "http";
+import { Server as SocketServer } from "socket.io";
 
-let turn = 0;
 // Constants
 const app = express();
 const server = http.createServer(app); // Usar este servidor para Socket.IO
@@ -16,26 +14,52 @@ const io = new SocketServer(server, {
   },
 });
 
-// Función para generar un ID único para la partida
-function generarIdPartida() {
-  return 'partida_' + Math.random().toString(36).substr(2, 9); // Ejemplo de ID aleatorio
-}
-
 let partidas = {}; // Almacenará las partidas activas
 let usuarios = {}; // Almacenará los usuarios con su socket ID
-let games = {};
+let ranking = {}; // Almacenará el ranking con formato {id: {ganador, creador, id}}
+const tiempoPartida = 3 * 60 * 1000; //El tiempo que se tiene para iniciar una partida
 
-io.on('connection', (socket) => {
-  console.log('Cliente conectado:', socket.id);
+// Función para generar un ID único para la partida
+function generarIdPartida() {
+  return "partida_" + Math.random().toString(36).substr(2, 9); // Ejemplo de ID aleatorio
+}
+
+// Función para eliminar una partida
+function eliminarPartida(partidaId) {
+  const partida = partidas[partidaId];
   
+  //Verifica si la partida fue iniciada
+  if(partida && !partida.iniciada) {
+    //Eliminar la partida
+    delete partidas[partidaId];
+    console.log(`Se eliminó la partida ${partidaId} por no iniciarse a tiempo.`);
+
+    //Avisar que la partida fue eliminada a los jugadores
+    partida.jugadores.forEach(jugador => {
+      io.to(jugador.id).emit('partidaEliminada', {
+        partidaId,
+        razon: 'Timepo para inicar la partida terminado.'
+      });
+    });
+
+    //Actualizar la lista de partidas
+    io.emit('actualizarPartidas', Object.values(partidas));
+
+    console.log('\n');
+  }
+}
+
+io.on("connection", (socket) => {
+  console.log("Cliente conectado:", socket.id);
+
   // Enviar las partidas disponibles al conectarse
-  socket.emit('actualizarPartidas', Object.values(partidas));
+  socket.emit("actualizarPartidas", Object.values(partidas));
 
   // Login: asociar el nombre del usuario con su socket ID
   socket.on("login", ({ nombre, socketId }) => {
     if (nombre && socketId) {
       // Asociar el socket.id recibido con el nombre del usuario
-      usuarios[socketId] = {nombre};
+      usuarios[socketId] = { nombre };
       console.log(`Usuario ${nombre} conectado con socket ID: ${socketId}`);
     } else {
       console.error("El nombre o socketId no es válido");
@@ -48,81 +72,65 @@ io.on('connection', (socket) => {
 
     const partidaId = generarIdPartida(); // Generar un ID único para la partida
 
-    cantJug = Number(cantJug);
-
+    // Guardar la partida en el objeto partidas
     partidas[partidaId] = { 
       id: partidaId, 
       nombre,
       tipo,
-      cantJug, // Convertir a número si es necesario
-      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }] 
+      cantJug,
+      iniciada: false,
+      jugadores: [{ id: socket.id, nombre: usuarios[socket.id].nombre }] ,
+      creada: Date.now()
     };
+
     console.log(`Socket jugador: ${socket.id}`);
     console.log(`Nombre del jugador: ${usuarios[socket.id].nombre}`);
     console.log(partidas);
-
 
     // Emitir el ID de la partida creada al jugador
     socket.emit('partidaCreada', partidaId);
 
     // Emitir la lista de partidas a todos los clientes conectados
     io.emit('actualizarPartidas', Object.values(partidas));
+
+    //Inicia el temporizador para la eliminación de la partida
+    setTimeout(() => {
+      eliminarPartida(partidaId);
+    }, tiempoPartida);
+
+    console.log('\n');
+
   });
 
-  // Evento para obtener las partidas disponibles
-  socket.on('obtenerPartidas', () => {
-    const partidasDisponibles = Object.values(partidas); // Convertir partidas a array
-    socket.emit('actualizarPartidas', partidasDisponibles); // Enviar las partidas al cliente
-  });
-
-  socket.on('iniciarPartida', (partidaId) => {
+  //Evento para iniciar una partida
+  socket.on('iniciarPartida', ({partidaId}) => {
     const partida = partidas[partidaId];
+    
     if (!partida) {
       socket.emit('errorIniciarPartida', 'Partida no encontrada.');
       return;
     }
-  
+    
+    partida.iniciada = true;
     console.log(`Intentando iniciar partida ${partidaId}`);
     console.log(`Número de jugadores: ${partida.jugadores.length}`);
     console.log(`Número de jugadores requeridos: ${partida.cantJug}`);
-  
-    // Cambiar la comparación para usar el número exacto de jugadores
-    if (partida.jugadores.length === partida.cantJug) {
-      // Unir todos los jugadores a una sala con el ID de la partida
 
-      partida.jugadores.forEach(jugador => {
-        const socketCliente = io.sockets.sockets.get(jugador.id);
-        if (socketCliente) {
-          socketCliente.join(partidaId);
-        }
-      });
-  
-      // Emitir evento de inicio de partida a todos los jugadores en la sala
-      io.to(partidaId).emit('partidaIniciada', { 
-        id: partidaId,
-        jugadores: partida.jugadores
-      });
-    } else {
-      socket.emit('errorIniciarPartida', `No hay suficientes jugadores. Se necesitan ${partida.cantJug}, hay ${partida.jugadores.length}.`);
-    }
-  });
+    // Unir todos los jugadores a una sala con el ID de la partida
+    partida.jugadores.forEach(jugador => {
+      const socketCliente = io.sockets.sockets.get(jugador.id);
+      if (socketCliente) {
+        socketCliente.join(partidaId);
+      }
+    });
 
-  // Actualizar estado del tablero
-  socket.on('actualizarTablero', ({ partidaId, nuevoTablero }) => {
-    const partida = partidas[partidaId];
-    
-    if (partida) {
-      partida.tablero = nuevoTablero;
-      
-      // Emitir a todos los jugadores en la sala del juego
-      io.to(partidaId).emit('tableroActualizado', nuevoTablero);
-    }
-  });
+    // Emitir evento para que todos los jugadores naveguen
+    io.to(partidaId).emit('navegarAPartida', { 
+      id: partidaId,
+      jugadores: partida.jugadores
+    });
 
-  socket.on('moverFicha', (data) => {
-    // Actualizar el estado del tablero en el servidor (opcional, si necesitas guardarlo)
-    // Emitir el movimiento a todos los jugadores
-    io.emit('actualizarTablero', data);  // 'actualizarTablero' es el evento que se emitirá a los clientes
+    console.log('\n');
   });
 
   socket.on('verificarJugadoresPartida', (partidaId) => {
@@ -144,10 +152,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const cantJug = Number(partida.cantJug);
+    //Verificar si la partida ya fue iniciada o si el tiempo terminó
+    const tiempo = Date.now() - partida.creada;
 
-    if (partida.jugadores.length >= cantJug) {
-      socket.emit('errorUnirsePartida', 'La partida ya está llena.');
+    if(partida.iniciada || tiempo >= tiempoPartida) {
+      socket.emit('errorUnirsePartida', 'La partida no está disponible.');
       return;
     }
 
@@ -161,6 +170,11 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (partida.jugadores.length >= partida.cantJug) {
+      socket.emit('errorUnirsePartida', 'La partida ya está llena.');
+      return;
+    }
+
     // Agregar al jugador a la partida
     partida.jugadores.push({ id: socketID, nombre: usuarios[socketID].nombre });
 
@@ -171,6 +185,26 @@ io.on('connection', (socket) => {
 
     // Actualizar la lista de partidas a todos los clientes
     io.emit('actualizarPartidas', Object.values(partidas));
+
+    console.log('\n');
+  });
+
+  // Actualizar estado del tablero
+  socket.on('actualizarTablero', ({ partidaId, nuevoTablero }) => {
+    const partida = partidas[partidaId];
+    
+    if (partida) {
+      partida.tablero = nuevoTablero;
+      
+      // Emitir a todos los jugadores en la sala del juego
+      io.to(partidaId).emit('tableroActualizado', nuevoTablero);
+    }
+  });
+
+  socket.on('moverFicha', (data) => {
+    // Actualizar el estado del tablero en el servidor (opcional, si necesitas guardarlo)
+    // Emitir el movimiento a todos los jugadores
+    io.emit('actualizarTablero', data);  // 'actualizarTablero' es el evento que se emitirá a los clientes
   });
 
   socket.on('obtenerDetallesPartida', (partidaId) => {
@@ -180,7 +214,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Manejar lanzamientos de dado
+  // Evento para obtener las partidas disponibles
+  socket.on('obtenerPartidas', () => {
+    const partidasDisponibles = Object.values(partidas); // Convertir partidas a array
+    socket.emit('actualizarPartidas', partidasDisponibles); // Enviar las partidas al cliente
+  });
+
+  // Manejar los tiros del de dado
   socket.on('lanzamientoDado', (data) => {
     const partida = partidas[data.partidaId];
     if (!partida) return;
@@ -189,7 +229,10 @@ io.on('connection', (socket) => {
     if (!partida.diceRolls) {
         partida.diceRolls = {};
     }
-    partida.diceRolls[data.jugador.id] = data.numero;
+    partida.diceRolls[data.jugador.id] = {
+      nombre: data.jugador.nombre,
+      numero: data.numero
+    };
 
     // Emitir el resultado a todos los jugadores
     io.to(data.partidaId).emit('dadoLanzado', {
@@ -197,89 +240,89 @@ io.on('connection', (socket) => {
         numero: data.numero
     });
 
-    // Si todos han tirado, determinar el orden
+    // Si se tirmino de tirar el dado se determinar el orden
     if (Object.keys(partida.diceRolls).length === partida.jugadores.length) {
-        const ordenJugadores = partida.jugadores.sort((a, b) => {
-            return partida.diceRolls[b.id] - partida.diceRolls[a.id];
-        });
+        const tiros = Object.values(partida.diceRolls);
+        
+        // Función para ordenar
+        const ordenarXTurno = (a, b) => {
+          if (a.numero !== b.numero) {
+            return b.numero - a.numero;
+          }
+          
+          // Si son iguales, ordenar alfabéticamente por nombre
+          return a.nombre.localeCompare(b.nombre);
+        };
+
+        const ordenJugadores = tiros
+          .sort(ordenarXTurno)
+          .map(roll => ({ 
+            id: Object.keys(partida.diceRolls).find(key => 
+              partida.diceRolls[key].nombre === roll.nombre
+            ),
+            nombre: roll.nombre 
+          }));
 
         partida.ordenJugadores = ordenJugadores;
         partida.turnoActual = 0;
-
+        
+        //Devuelve el orden ya definido
         io.to(data.partidaId).emit('ordenJuegoDeterminado', ordenJugadores);
-      }
+    } 
+  });
+
+  // Evento para agregar un elemento al ranking
+  socket.on("agregarRanking", ({ ganador, creador, id }) => {
+    if (!ganador || !creador || !id) {
+      socket.emit("errorRanking", "Datos incompletos para agregar al ranking.");
+      return;
+    }
+
+    // Agregar el elemento al ranking
+    ranking[id] = { ganador, creador, id };
+
+    console.log(`Agregado al ranking: ${JSON.stringify(ranking[id])}`);
+
+    // Emitir la lista de ranking actualizada a todos los clientes
+    io.emit("actualizarRanking", Object.values(ranking));
+  });
+
+  // Evento para recuperar el ranking completo
+  socket.on("obtenerRanking", () => {
+    // Emitir el ranking completo al cliente
+    socket.emit("actualizarRanking", Object.values(ranking));
   });
 
   // Evento para desconectar
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     // Buscar y eliminar al jugador de las partidas
     for (const [id, partida] of Object.entries(partidas)) {
-      const index = partida.jugadores.findIndex((jugador) => jugador.id === socket.id);
+      const index = partida.jugadores.findIndex(
+        (jugador) => jugador.id === socket.id
+      );
       if (index !== -1) {
         partida.jugadores.splice(index, 1);
-        console.log(`Jugador ${usuarios[socket.id]?.nombre} (${socket.id}) eliminado de la partida ${id}`);
-        
-        // Si la partida ya está iniciada, notificar a los demás jugadores
-        if (partida.estado === 'iniciada') {
-          io.to(id).emit('jugadorDesconectado', { 
-            jugadorId: socket.id,
-            mensaje: `El jugador ${usuarios[socket.id]?.nombre} se ha desconectado`
-          });
-        }
+        console.log(
+          `Jugador ${usuarios[socket.id]} (${socket.id}) eliminado de la partida ${id}`
+        );
       }
     }
-  
+
     // Limpiar las partidas sin jugadores
     partidas = Object.fromEntries(
       Object.entries(partidas).filter(([id, partida]) => partida.jugadores.length > 0)
     );
-  
+
     // Actualizar la lista de partidas a todos los clientes
-    io.emit('actualizarPartidas', Object.values(partidas));
+    io.emit("actualizarPartidas", Object.values(partidas));
   });
 });
-
-function validarMovimiento(tablero, origen, destino, turnoActual) {
-  const [origenFila, origenCol] = origen;
-  const [destinoFila, destinoCol] = destino;
-
-  // Implementar lógica personalizada de validación del juego
-  if (Math.abs(destinoFila - origenFila) > 2 || Math.abs(destinoCol - origenCol) > 2) {
-    return { valido: false };
-  }
-
-  // Actualizar tablero si el movimiento es válido
-  const nuevoTablero = [...tablero];
-  nuevoTablero[origenFila][origenCol] = 0;
-  nuevoTablero[destinoFila][destinoCol] = tablero[origenFila][origenCol];
-
-  return { valido: true, nuevoTablero };
-}
-
-// Función para determinar siguiente jugador
-function determinarSiguienteJugador(gameId) {
-  // Lógica para rotar turnos entre jugadores
-  const game = games[gameId];
-  const currentPlayerIndex = game.currentPlayerIndex;
-  const nextPlayerIndex = (currentPlayerIndex + 1) % game.players.length;
-  
-  game.currentPlayerIndex = nextPlayerIndex;
-  return game.players[nextPlayerIndex];
-}
 
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(express.static("build")); // Para servir archivos estáticos si fuera necesario
-
-// Endpoint para obtener el estado inicial del tablero
-app.get("/board", (req, res) => {
-  const initialBoard = [
-    // Aquí puedes definir el estado inicial del tablero si es necesario
-  ];
-  res.json(initialBoard);
-});
 
 // Inicia el servidor
 server.listen(3001, () => {
