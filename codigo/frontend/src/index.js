@@ -19,6 +19,7 @@ root.render(
             <Route path="/GameArea" element={<GameArea />} />
             <Route path="/Ranking" element={<Ranking partidas={[]} />} />
             <Route path="/juego/turnos/:partidaId" element={<Turno />} />
+            <Route path="/juego/partida/:partidaId" element={<GameArea />} />
         </Routes>
     </BrowserRouter>
   </React.StrictMode>
