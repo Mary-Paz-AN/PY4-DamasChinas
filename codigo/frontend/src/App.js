@@ -44,8 +44,12 @@ const App = () => {
     navigate("/partidasDisponibles");
   };
 
+  const unirseJuego = () => {
+    navigate("/unirseJuego"); // Redirige a la página de unirse al juego
+  };
+
   const verRanking = () => {
-    navigate("/ranking"); // Redirige a la página de ranking
+    navigate("/Ranking"); // Redirige a la página de ranking
   };
 
   const cerrarSesion = () => {
@@ -69,6 +73,9 @@ const App = () => {
           Crear Partida
         </button>
         <button className="buttonStyle" onClick={partidaDisp}>
+          Partidas Disponibles
+        </button>
+        <button className="buttonStyle" onClick={unirseJuego}>
           Unirse a Juego
         </button>
         <button className="buttonStyle" onClick={verRanking}>
