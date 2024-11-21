@@ -1,184 +1,125 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; // Añadir este import
-import socket from '../Sockets.js';
+import { useParams } from "react-router-dom";
+import Juego from "../models/Juego.js";
+import socket from '../Sockets.js';  
 
-const Turno = () => {
-    // Obtener el partidaId de los parámetros de la URL
+const socketJuego = new Juego(socket);
+
+const Turnos = () => {
     const { partidaId } = useParams();
-    
     const [jugadores, setJugadores] = useState([]);
-    const [jugadorActual, setJugadorActual] = useState(null);
-    const [estadoTurnos, setEstadoTurnos] = useState('preparando');
-    const [dado, setDado] = useState(0);
-    const [turnosLanzados, setTurnosLanzados] = useState([]);
-    const [puedeJugar, setPuedeJugar] = useState(false);
+    const [dadosLanzados, setDadosLanzados] = useState({});
+    const [jugadorActual, setJugadorActual] = useState(0);
+    const [fin, setFin] = useState(false);
+    const [lanzando, setLanzando] = useState(false);
+    const [resultadoActual, setResultadoActual] = useState(0);
 
+    //Cosigue los jugadores y los actualiza si se lanzo el dado
     useEffect(() => {
-        // Agregar verificación de partidaId
-        console.log('partidaId recibido:', partidaId);
+        socketJuego.socket.emit('verificarJugadoresPartida', partidaId);
         
-        if (!partidaId) {
-            console.error('No se recibió un ID de partida válido');
-            return;
-        }
+        socketJuego.socket.on('jugadoresPartida', (players) => {
+            setJugadores(players.map(p => p.nombre));
+        });
 
-        // Verificar estado de conexión del socket
-        console.log('Socket connected:', socket.connected);
-        
-        // Solicitar detalles de la partida
-        const solicitarDetalles = () => {
-            console.log('Solicitando detalles de partida');
-            socket.emit('obtenerDetallesPartida', partidaId);
-        };
-
-        // Escuchar los detalles de la partida
-        const handleDetallesPartida = (datosPartida) => {
-            console.log('Detalles de la partida recibidos:', datosPartida);
+        socketJuego.socket.on('dadoLanzado', ({ jugador, numero }) => {
+            setLanzando(true);
+            setResultadoActual(numero);
             
-            if (datosPartida && datosPartida.jugadores) {
-                const nombresJugadores = datosPartida.jugadores.map(jugador => jugador.nombre);
-                console.log('Jugadores en la partida:', nombresJugadores);
-                
-                setJugadores(nombresJugadores);
-                
-                // Establecer primer jugador
-                setJugadorActual(nombresJugadores[0]);
-                setEstadoTurnos('lanzandoDados');
-            }
-        };
+            setTimeout(() => {
+                setDadosLanzados(prevDados => ({
+                    ...prevDados,
+                    [jugador.nombre]: numero
+                }));
+                setLanzando(false);
+                setResultadoActual(0);
 
-        // Añadir listeners
-        socket.on('detallesPartida', handleDetallesPartida);
-        
-        // Escuchar lanzamientos de dados de otros jugadores
-        socket.on('dadoLanzado', (datos) => {
-            console.log('Dado lanzado:', datos);
-            setTurnosLanzados(prevTurnos => [...prevTurnos, {
-                jugador: datos.jugador.nombre,
-                numero: datos.numero
-            }]);
+                if (Object.keys(dadosLanzados).length + 1 === jugadores.length) {
+                    setFin(true);
+                } else {
+                    setJugadorActual(prev => prev + 1);
+                }
+            }, 2000);
         });
 
-        // Escuchar orden de juego determinado
-        socket.on('ordenJuegoDeterminado', (ordenJugadores) => {
-            console.log('Orden de juego determinado:', ordenJugadores);
-            setEstadoTurnos('turnosDefinidos');
-        });
+        //if(listo) {
+        //    navigate('/game/{jugadores}');
+       // }
 
-        // Solicitar detalles inmediatamente si el socket está conectado
-        if (socket.connected) {
-            solicitarDetalles();
-        } else {
-            // Conectar si no está conectado
-            socket.connect();
-            socket.on('connect', solicitarDetalles);
-        }
-
-        // Limpiar listeners
         return () => {
-            socket.off('detallesPartida', handleDetallesPartida);
-            socket.off('dadoLanzado');
-            socket.off('ordenJuegoDeterminado');
-            socket.off('connect');
+            socketJuego.socket.off('jugadoresPartida');
+            socketJuego.socket.off('dadoLanzado');
         };
-    }, [partidaId]);
+    }, [partidaId, jugadores]);
 
-    // Efecto para actualizar si puede lanzar el dado
-    useEffect(() => {
-        console.log('Estado actual:', {
-            estadoTurnos,
-            jugadorActual,
-            turnosLanzados
-        });
-
-        // Verificar si es el turno de lanzar dado del jugador actual
-        const puedeLanzar = 
-            estadoTurnos === 'lanzandoDados' && 
-            !turnosLanzados.some(turno => turno.jugador === jugadorActual);
-        
-        console.log('Puede jugar:', puedeLanzar);
-        setPuedeJugar(puedeLanzar);
-    }, [estadoTurnos, jugadorActual, turnosLanzados]);
-
+    //Hace la simulación de lanzr el dado y emite el evento para actualizar en los jugadores
     const lanzarDado = () => {
-        if (!puedeJugar) return;
-
         const numero = Math.floor(Math.random() * 6) + 1;
-        setDado(numero);
+        const jugador = {
+            id: socketJuego.socket.id,
+            nombre: jugadores[jugadorActual]
+        };
 
-        // Emitir evento de lanzamiento de dado al servidor
-        socket.emit('lanzamientoDado', {
-            partidaId,
-            jugador: { id: socket.id, nombre: jugadorActual },
-            numero
+        socketJuego.socket.emit('lanzamientoDado', { 
+            partidaId, 
+            jugador, 
+            numero 
         });
-
-        // Preparar siguiente jugador
-        const indiceActual = jugadores.indexOf(jugadorActual);
-        const siguienteIndice = (indiceActual + 1) % jugadores.length;
-        setJugadorActual(jugadores[siguienteIndice]);
-    };
-
-    const renderizarContenido = () => {
-        console.log('Renderizando contenido. Estado:', estadoTurnos);
-        
-        switch(estadoTurnos) {
-            case 'preparando':
-                return <div>
-                    <p>Preparando juego...</p>
-                    <p>ID de Partida: {partidaId}</p>
-                    <p>Jugadores: {jugadores.join(', ')}</p>
-                </div>;
-            
-            case 'lanzandoDados':
-                return (
-                    <div className="buttonContenedor">
-                        <h3 className="tituloStyle">
-                            {jugadorActual} lanza el dado
-                        </h3>
-                        <div>
-                            {turnosLanzados.map((turno, index) => (
-                                <p key={index}>{turno.jugador}: {turno.numero}</p>
-                            ))}
-                        </div>
-                        <img
-                            src={`/images/${dado || '0'}.png`}
-                            alt={`Dado ${dado || 'sin lanzar'}`}
-                            style={{ width: '100px' }}
-                        />
-                        <button 
-                            className="buttonStyle" 
-                            onClick={lanzarDado} 
-                            disabled={!puedeJugar}
-                        >
-                            {puedeJugar ? 'Lanzar Dado' : 'Esperando turno'}
-                        </button>
-                    </div>
-                );
-            
-            case 'turnosDefinidos':
-                return (
-                    <div>
-                        <h2>Orden de Turnos Definido</h2>
-                        {turnosLanzados.sort((a, b) => b.numero - a.numero)
-                            .map((turno, index) => (
-                                <p key={index}>
-                                    {turno.jugador}: {turno.numero}
-                                </p>
-                            ))}
-                    </div>
-                );
-            
-            default:
-                return null;
-        }
     };
 
     return (
         <div className="contenedor">
-            {renderizarContenido()}
+            {!fin ? (
+                <div className="buttonContenedor">
+                    <h3 className="tituloStyle">
+                        {jugadores[jugadorActual]} lanzá el dado
+                    </h3>
+                    <div>
+                        {lanzando ? (
+                            <img 
+                                src={`/images/${resultadoActual}.png`} 
+                                alt={`Dado ${resultadoActual}`} 
+                                style={{ width: '50px' }} 
+                            />
+                        ) : dadosLanzados[jugadores[jugadorActual]] ? (
+                            <img 
+                                src={`/images/${dadosLanzados[jugadores[jugadorActual]]}.png`} 
+                                alt={`Dado ${dadosLanzados[jugadores[jugadorActual]]}`} 
+                                style={{ width: '50px' }} 
+                            />
+                        ) : (
+                            <img 
+                                src="/images/0.png" 
+                                alt="Dado inicial" 
+                                style={{ width: '50px' }} 
+                            />
+                        )}
+                    </div>
+                    <button 
+                        className="buttonStyle" 
+                        onClick={lanzarDado}
+                        disabled={dadosLanzados[jugadores[jugadorActual]] || lanzando}
+                    >
+                        Lanzar Dado
+                    </button>
+                </div>
+            ) : (
+                <div>
+                    <h2>Resultados de Dados:</h2>
+                    {jugadores.map(nombre => (
+                        <div key={nombre}>
+                            {nombre}: 
+                            <img 
+                                src={`/images/${dadosLanzados[nombre]}.png`} 
+                                alt={`Dado ${dadosLanzados[nombre]}`} 
+                                style={{ width: '50px' }} 
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
 
-export default Turno;
+export default Turnos;

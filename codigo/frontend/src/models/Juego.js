@@ -26,6 +26,11 @@ class Juego {
     this.socket.emit('obtenerPartidas');
   }
 
+  //Metodo para escuchar la navegacion a partidas
+  onNavegacionPartida(callback) {
+    this.socket.on('navegarAPartida', callback);
+  }
+
   // Método para escuchar actualizaciones de partidas
   onActualizarPartidas(callback) {
     this.socket.on('actualizarPartidas', callback);
@@ -54,6 +59,20 @@ class Juego {
   // Método para escuchar cuando una partida es iniciada
   onPartidaIniciada(callback) {
     this.socket.on('partidaIniciada', callback);
+  }
+
+  // Método para actualizar ek dado
+  lanzarDado(partidaId, jugador, numero) {
+    this.socket.emit('lanzamientoDado', { 
+      partidaId, 
+      jugador, 
+      numero 
+    });
+  }
+
+  //Obtener los resultados del dado
+  onDadoLanzado(callback) {
+    this.socket.on('dadoLanzado', callback);
   }
 
   // Método para limpiar los listeners

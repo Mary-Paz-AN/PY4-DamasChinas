@@ -124,8 +124,8 @@ io.on("connection", (socket) => {
       }
     });
 
-    // Emitir evento de inicio de partida a todos los jugadores en la sala
-    io.to(partidaId).emit('partidaIniciada', { 
+    // Emitir evento para que todos los jugadores naveguen
+    io.to(partidaId).emit('navegarAPartida', { 
       id: partidaId,
       jugadores: partida.jugadores
     });
@@ -202,7 +202,7 @@ io.on("connection", (socket) => {
     socket.emit('actualizarPartidas', partidasDisponibles); // Enviar las partidas al cliente
   });
 
-  // Manejar lanzamientos de dado
+  // Manejar los tiros del de dado
   socket.on('lanzamientoDado', (data) => {
     const partida = partidas[data.partidaId];
     if (!partida) return;
@@ -211,7 +211,10 @@ io.on("connection", (socket) => {
     if (!partida.diceRolls) {
         partida.diceRolls = {};
     }
-    partida.diceRolls[data.jugador.id] = data.numero;
+    partida.diceRolls[data.jugador.id] = {
+      nombre: data.jugador.nombre,
+      numero: data.numero
+    };
 
     // Emitir el resultado a todos los jugadores
     io.to(data.partidaId).emit('dadoLanzado', {
@@ -219,17 +222,35 @@ io.on("connection", (socket) => {
         numero: data.numero
     });
 
-    // Si todos han tirado, determinar el orden
+    // Si se tirmino de tirar el dado se determinar el orden
     if (Object.keys(partida.diceRolls).length === partida.jugadores.length) {
-        const ordenJugadores = partida.jugadores.sort((a, b) => {
-            return partida.diceRolls[b.id] - partida.diceRolls[a.id];
-        });
+        const tiros = Object.values(partida.diceRolls);
+        
+        // Función para ordenar
+        const ordenarXTurno = (a, b) => {
+          if (a.numero !== b.numero) {
+            return b.numero - a.numero;
+          }
+          
+          // Si son iguales, ordenar alfabéticamente por nombre
+          return a.nombre.localeCompare(b.nombre);
+        };
+
+        const ordenJugadores = tiros
+          .sort(ordenarXTurno)
+          .map(roll => ({ 
+            id: Object.keys(partida.diceRolls).find(key => 
+              partida.diceRolls[key].nombre === roll.nombre
+            ),
+            nombre: roll.nombre 
+          }));
 
         partida.ordenJugadores = ordenJugadores;
         partida.turnoActual = 0;
-
+        
+        //Devuelve el orden ya definido
         io.to(data.partidaId).emit('ordenJuegoDeterminado', ordenJugadores);
-      }
+    } 
   });
 
   // Evento para agregar un elemento al ranking

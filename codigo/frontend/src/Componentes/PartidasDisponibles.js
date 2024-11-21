@@ -69,6 +69,19 @@ const PartidasDisponibles = () => {
     };
   }, []);
 
+  useEffect(() => {
+    // Configurar el listener de navegación
+    socketJuego.onNavegacionPartida((datos) => {
+      console.log(`Navegando a partida ${datos.id}`);
+      navigate(`/juego/turnos/${datos.id}`);
+    });
+  
+    // Limpieza de listeners cuando el componente se desmonte
+    return () => {
+      socketJuego.limpiarListeners();
+    };
+  }, [navigate]);
+
   const handleEntrarJuego = (partidaId) => {
     setLoading(true);
     socketJuego.iniciarPartida(partidaId);
@@ -76,7 +89,7 @@ const PartidasDisponibles = () => {
     // Escuchar la confirmación de inicio de partida
     socketJuego.socket.on('partidaIniciada', (datos) => {
       console.log(`Partida ${datos.id} iniciada con jugadores:`, datos.jugadores);
-      navigate('/GameArea');
+      navigate(`/juego/turnos/${partidaId}`);
     });
   };  
 
