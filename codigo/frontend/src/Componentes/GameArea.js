@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initialBoard } from '../Data/initialBoard';
+import { useParams } from 'react-router-dom';
 import socket from '../Sockets.js';  
 
 const colorMap = {
@@ -23,10 +24,11 @@ const victoryZones = {
 };
 
 const GameArea = () => {
+  const { partidaId } = useParams();
   const [board, setBoard] = useState(initialBoard);
   const [selectedPiece, setSelectedPiece] = useState(null);
   const [possibleMoves, setPossibleMoves] = useState([]);
-  const [currentTurn, setCurrentTurn] = useState(5);  // Comenzamos con el rojo
+  const [currentTurn, setCurrentTurn] = useState(1);  // Comenzamos con el rojo
   const [mustContinueJumping, setMustContinueJumping] = useState(false);
   const [winner, setWinner] = useState(null);
 
@@ -168,9 +170,13 @@ const GameArea = () => {
           return;
         }
   
-        socket.emit('moverFicha', { newBoard, currentTurn }); // Emitir el movimiento
+        socket.emit('moverFicha', { 
+          newBoard, 
+          currentTurn, 
+          partidaId  // Añade el ID de la partida
+      });
         setBoard(newBoard);
-        setCurrentTurn(currentTurn === 5 ? 1 : 5); // Cambiar turno al siguiente jugador
+        setCurrentTurn(currentTurn === 1 ? 4 : 1); // Cambiar turno al siguiente jugador
         setSelectedPiece(null);
         setPossibleMoves([]);
       }
@@ -182,7 +188,7 @@ const GameArea = () => {
     setBoard(initialBoard);
     setSelectedPiece(null);
     setPossibleMoves([]);
-    setCurrentTurn(5);
+    setCurrentTurn(1);
     setMustContinueJumping(false);
     setWinner(null);
   };
